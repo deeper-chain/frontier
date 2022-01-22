@@ -1573,6 +1573,7 @@ dependencies = [
  "sc-service",
  "sc-transaction-pool",
  "sc-transaction-pool-api",
+ "serde",
  "sha3 0.8.2",
  "sp-api",
  "sp-block-builder",

@@ -19,6 +19,7 @@
 mod eth;
 mod eth_pubsub;
 mod overrides;
+mod tx_pool;
 
 pub use eth::{
 	EthApi, EthApiServer, EthBlockDataCache, EthFilterApi, EthFilterApiServer, EthTask, NetApi,
@@ -30,6 +31,7 @@ pub use overrides::{
 	OverrideHandle, RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override,
 	SchemaV3Override, StorageOverride,
 };
+pub use tx_pool::{TxPoolApi, TxPoolApiServer};
 
 use ethereum_types::{H160, H256};
 use evm::ExitError;

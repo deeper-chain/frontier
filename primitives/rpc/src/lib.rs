@@ -24,6 +24,8 @@ use sp_core::{H160, H256, U256};
 use sp_runtime::{traits::Block as BlockT, Permill};
 use sp_std::vec::Vec;
 
+pub use ethereum::{TransactionV0 as LegacyTransaction, TransactionV2 as Transaction};
+
 #[derive(Eq, PartialEq, Clone, Encode, Decode, sp_runtime::RuntimeDebug, scale_info::TypeInfo)]
 pub struct TransactionStatus {
 	pub transaction_hash: H256,
@@ -47,6 +49,18 @@ impl Default for TransactionStatus {
 			logs_bloom: Bloom::default(),
 		}
 	}
+}
+
+#[derive(Eq, PartialEq, Clone, Encode, Decode, sp_runtime::RuntimeDebug)]
+pub struct TxPoolResponseLegacy {
+	pub ready: Vec<LegacyTransaction>,
+	pub future: Vec<LegacyTransaction>,
+}
+
+#[derive(Eq, PartialEq, Clone, Encode, Decode, sp_runtime::RuntimeDebug)]
+pub struct TxPoolResponse {
+	pub ready: Vec<Transaction>,
+	pub future: Vec<Transaction>,
 }
 
 sp_api::decl_runtime_apis! {
@@ -176,6 +190,19 @@ sp_api::decl_runtime_apis! {
 		) -> Vec<ethereum::TransactionV2>;
 		/// Return the elasticity multiplier.
 		fn elasticity() -> Option<Permill>;
+	}
+
+	#[api_version(2)]
+	pub trait TxPoolRuntimeRPCApi {
+		#[changed_in(2)]
+		fn extrinsic_filter(
+			xt_ready: Vec<<Block as BlockT>::Extrinsic>,
+			xt_future: Vec<<Block as BlockT>::Extrinsic>,
+		) -> TxPoolResponseLegacy;
+		fn extrinsic_filter(
+			xt_ready: Vec<<Block as BlockT>::Extrinsic>,
+			xt_future: Vec<<Block as BlockT>::Extrinsic>,
+		) -> TxPoolResponse;
 	}
 }
 

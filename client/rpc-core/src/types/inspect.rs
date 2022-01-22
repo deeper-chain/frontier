@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moonbeam.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::GetT;
+use crate::types::Get;
 use ethereum::{TransactionAction, TransactionV2 as EthereumTransaction};
 use ethereum_types::{H160, H256, U256};
 use serde::{Serialize, Serializer};
@@ -43,7 +43,7 @@ impl Serialize for Summary {
 	}
 }
 
-impl GetT for Summary {
+impl Get for Summary {
 	fn get(_hash: H256, _from_address: H160, txn: &EthereumTransaction) -> Self {
 		let (action, value, gas_price, gas_limit) = match txn {
 			EthereumTransaction::Legacy(t) => (t.action, t.value, t.gas_price, t.gas_limit),

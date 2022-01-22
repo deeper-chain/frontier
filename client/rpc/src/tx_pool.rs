@@ -15,14 +15,16 @@
 // along with Moonbeam.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethereum_types::{H160, H256, U256};
-use fc_rpc::{internal_err, public_key};
+use crate::{internal_err, public_key};
+use fp_rpc::{Transaction as TransactionV2, TxPoolResponse, TxPoolRuntimeRPCApi};
 use jsonrpc_core::Result as RpcResult;
-pub use moonbeam_rpc_core_txpool::{
-	GetT, Summary, Transaction, TransactionMap, TxPool as TxPoolT, TxPoolResult, TxPoolServer,
+pub use fc_rpc_core::{
+	types::{Get, Summary, TransactionContent, TransactionMap, TxPoolResult,},
+	TxPoolApi as TxPoolApiT, TxPoolApiServer,
 };
 // TODO @tgmichel It looks like this graph stuff moved to the test-helpers feature.
 // Is it only for tests? Should we use it here?
-use sc_transaction_pool::test_helpers::{ChainApi, Pool};
+use sc_transaction_pool::{ChainApi, Pool};
 use sc_transaction_pool_api::InPoolTransaction;
 use serde::Serialize;
 use sha3::{Digest, Keccak256};
@@ -32,30 +34,26 @@ use sp_runtime::traits::Block as BlockT;
 use std::collections::HashMap;
 use std::{marker::PhantomData, sync::Arc};
 
-use moonbeam_rpc_primitives_txpool::{
-	Transaction as TransactionV2, TxPoolResponse, TxPoolRuntimeApi,
-};
-
-pub struct TxPool<B: BlockT, C, A: ChainApi> {
+pub struct TxPoolApi<B: BlockT, C, A: ChainApi> {
 	client: Arc<C>,
 	graph: Arc<Pool<A>>,
 	_marker: PhantomData<B>,
 }
 
-impl<B, C, A> TxPool<B, C, A>
+impl<B: BlockT, C, A: ChainApi> TxPoolApi<B, C, A>
 where
 	C: ProvideRuntimeApi<B>,
 	C: HeaderMetadata<B, Error = BlockChainError> + HeaderBackend<B> + 'static,
 	C: Send + Sync + 'static,
 	B: BlockT<Hash = H256> + Send + Sync + 'static,
 	A: ChainApi<Block = B> + 'static,
-	C::Api: TxPoolRuntimeApi<B>,
+	C::Api: TxPoolRuntimeRPCApi<B>,
 {
 	/// Use the transaction graph interface to get the extrinsics currently in the ready and future
 	/// queues.
 	fn map_build<T>(&self) -> RpcResult<TxPoolResult<TransactionMap<T>>>
 	where
-		T: GetT + Serialize,
+		T: Get + Serialize,
 	{
 		// Collect transactions in the ready validated pool.
 		let txs_ready = self
@@ -78,7 +76,7 @@ where
 		let best_block: BlockId<B> = BlockId::Hash(self.client.info().best_hash);
 		let api = self.client.runtime_api();
 		let api_version = if let Ok(Some(api_version)) =
-			api.api_version::<dyn TxPoolRuntimeApi<B>>(&best_block)
+			api.api_version::<dyn TxPoolRuntimeRPCApi<B>>(&best_block)
 		{
 			api_version
 		} else {
@@ -147,9 +145,7 @@ where
 		}
 		Ok(TxPoolResult { pending, queued })
 	}
-}
 
-impl<B: BlockT, C, A: ChainApi> TxPool<B, C, A> {
 	pub fn new(client: Arc<C>, graph: Arc<Pool<A>>) -> Self {
 		Self {
 			client,
@@ -159,17 +155,17 @@ impl<B: BlockT, C, A: ChainApi> TxPool<B, C, A> {
 	}
 }
 
-impl<B, C, A> TxPoolT for TxPool<B, C, A>
+impl<B, C, A> TxPoolApiT for TxPoolApi<B, C, A>
 where
 	C: ProvideRuntimeApi<B>,
 	C: HeaderMetadata<B, Error = BlockChainError> + HeaderBackend<B>,
 	C: Send + Sync + 'static,
 	B: BlockT<Hash = H256> + Send + Sync + 'static,
 	A: ChainApi<Block = B> + 'static,
-	C::Api: TxPoolRuntimeApi<B>,
+	C::Api: TxPoolRuntimeRPCApi<B>,
 {
-	fn content(&self) -> RpcResult<TxPoolResult<TransactionMap<Transaction>>> {
-		self.map_build::<Transaction>()
+	fn content(&self) -> RpcResult<TxPoolResult<TransactionMap<TransactionContent>>> {
+		self.map_build::<TransactionContent>()
 	}
 
 	fn inspect(&self) -> RpcResult<TxPoolResult<TransactionMap<Summary>>> {

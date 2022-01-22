@@ -14,15 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Moonbeam.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::GetT;
+use crate::types::{Bytes, Get};
 use ethereum::{TransactionAction, TransactionV2 as EthereumTransaction};
 use ethereum_types::{H160, H256, U256};
-use fc_rpc_core::types::Bytes;
 use serde::{Serialize, Serializer};
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Transaction {
+pub struct TransactionContent {
 	/// Hash
 	pub hash: H256,
 	/// Nonce
@@ -63,7 +62,7 @@ where
 	serializer.serialize_str(&format!("0x{:x}", hash.unwrap_or_default()))
 }
 
-impl GetT for Transaction {
+impl Get for TransactionContent {
 	fn get(hash: H256, from_address: H160, txn: &EthereumTransaction) -> Self {
 		let (nonce, action, value, gas_price, gas_limit, input) = match txn {
 			EthereumTransaction::Legacy(t) => (

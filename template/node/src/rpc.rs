@@ -121,13 +121,14 @@ where
 	C::Api: BlockBuilder<Block>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: fp_rpc::EthereumRuntimeRPCApi<Block>,
+	C::Api: fp_rpc::TxPoolRuntimeRPCApi<Block>,
 	P: TransactionPool<Block = Block> + 'static,
 	A: ChainApi<Block = Block> + 'static,
 {
 	use fc_rpc::{
 		EthApi, EthApiServer, EthDevSigner, EthFilterApi, EthFilterApiServer, EthPubSubApi,
 		EthPubSubApiServer, EthSigner, HexEncodedIdProvider, NetApi, NetApiServer, Web3Api,
-		Web3ApiServer,
+		Web3ApiServer, TxPoolApi, TxPoolApiServer,
 	};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
 	use substrate_frame_rpc_system::{FullSystem, SystemApi};
@@ -168,7 +169,7 @@ where
 	io.extend_with(EthApiServer::to_delegate(EthApi::new(
 		client.clone(),
 		pool.clone(),
-		graph,
+		graph.clone(),
 		frontier_template_runtime::TransactionConverter,
 		network.clone(),
 		signers,
@@ -210,6 +211,11 @@ where
 			Arc::new(subscription_task_executor),
 		),
 		overrides,
+	)));
+
+	io.extend_with(TxPoolApiServer::to_delegate(TxPoolApi::new(
+		client.clone(),
+		graph,
 	)));
 
 	match command_sink {

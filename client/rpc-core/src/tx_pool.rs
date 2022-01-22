@@ -18,16 +18,14 @@ use ethereum_types::U256;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 
-mod types;
+pub use crate::types::{Get, Summary, TransactionContent, TransactionMap, TxPoolResult};
 
-pub use crate::types::{Get as GetT, Summary, Transaction, TransactionMap, TxPoolResult};
-
-pub use rpc_impl_TxPool::gen_server::TxPool as TxPoolServer;
+pub use rpc_impl_TxPoolApi::gen_server::TxPoolApi as TxPoolApiServer;
 
 #[rpc(server)]
-pub trait TxPool {
+pub trait TxPoolApi {
 	#[rpc(name = "txpool_content")]
-	fn content(&self) -> Result<TxPoolResult<TransactionMap<Transaction>>>;
+	fn content(&self) -> Result<TxPoolResult<TransactionMap<TransactionContent>>>;
 
 	#[rpc(name = "txpool_inspect")]
 	fn inspect(&self) -> Result<TxPoolResult<TransactionMap<Summary>>>;
