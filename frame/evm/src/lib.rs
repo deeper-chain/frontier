@@ -75,23 +75,20 @@ use evm::Config as EvmConfig;
 use frame_support::{
 	dispatch::DispatchResultWithPostInfo,
 	traits::{
-		Currency, ExistenceRequirement, FindAuthor, Get, Imbalance,
-		OnUnbalanced, SignedImbalance, WithdrawReasons, IsType,
+		Currency, ExistenceRequirement, FindAuthor, Get, Imbalance, IsType, OnUnbalanced,
+		SignedImbalance, WithdrawReasons,
 	},
 	weights::{Pays, PostDispatchInfo, Weight},
 };
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_core::{H160, H256, U256, ecdsa};
+use sp_core::{ecdsa, H160, H256, U256};
+use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};
 use sp_runtime::{
 	traits::{Saturating, UniqueSaturatedInto, Zero},
 	AccountId32, DispatchError,
 };
 use sp_std::vec::Vec;
-use sp_io::{
-	crypto::secp256k1_ecdsa_recover,
-	hashing::keccak_256,
-};
 
 pub type EcdsaSignature = ecdsa::Signature;
 
@@ -164,21 +161,30 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			// ensure account_id and eth_address have NOT been mapped
-			ensure!(!EthAddresses::<T>::contains_key(&who), Error::<T>::AccountIdHasMapped);
-			ensure!(!Accounts::<T>::contains_key(eth_address), Error::<T>::EthAddressHasMapped);
+			ensure!(
+				!EthAddresses::<T>::contains_key(&who),
+				Error::<T>::AccountIdHasMapped
+			);
+			ensure!(
+				!Accounts::<T>::contains_key(eth_address),
+				Error::<T>::EthAddressHasMapped
+			);
 
 			// recover evm address from signature
-			let address = Self::eth_recover(&eth_signature, &who.using_encoded(to_ascii_hex), &[][..])
-				.ok_or(Error::<T>::BadSignature)?;
+			let address =
+				Self::eth_recover(&eth_signature, &who.using_encoded(to_ascii_hex), &[][..])
+					.ok_or(Error::<T>::BadSignature)?;
 			ensure!(eth_address == address, Error::<T>::InvalidSignature);
 
 			// check if the evm padded address already exists
 			let account_id = T::AddressMapping::into_account_id(eth_address);
 			if frame_system::Pallet::<T>::account_exists(&account_id) {
-			let free_balance = T::Currency::free_balance(&account_id);
-				T::Currency::transfer(&account_id, &who,
-						free_balance,
-						ExistenceRequirement::AllowDeath,
+				let free_balance = T::Currency::free_balance(&account_id);
+				T::Currency::transfer(
+					&account_id,
+					&who,
+					free_balance,
+					ExistenceRequirement::AllowDeath,
 				)?;
 			}
 
@@ -454,7 +460,8 @@ pub mod pallet {
 	/// AccountId => Eth Address
 	#[pallet::storage]
 	#[pallet::getter(fn eth_addresses)]
-	pub type EthAddresses<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, H160, ValueQuery>;
+	pub type EthAddresses<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, H160, ValueQuery>;
 }
 
 /// Type alias for currency balance.
@@ -500,11 +507,12 @@ where
 	}
 
 	fn ensure_address_origin(address: &H160, origin: &T::AccountId) -> Result<(), DispatchError> {
-		if Accounts::<T>::contains_key(&address) &&
-		   Accounts::<T>::get(address) == *origin {
+		if Accounts::<T>::contains_key(&address) && Accounts::<T>::get(address) == *origin {
 			Ok(())
 		} else {
-			Err(DispatchError::Other("eth and substrate addresses are not paired"))
+			Err(DispatchError::Other(
+				"eth and substrate addresses are not paired",
+			))
 		}
 	}
 }
@@ -604,7 +612,10 @@ impl<T: Config> Pallet<T> {
 	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 	// Constructs a message and signs it.
 	pub fn eth_sign(secret: &libsecp256k1::SecretKey, what: &[u8], extra: &[u8]) -> EcdsaSignature {
-		let msg = keccak_256(&Self::ethereum_signable_message(&to_ascii_hex(what)[..], extra));
+		let msg = keccak_256(&Self::ethereum_signable_message(
+			&to_ascii_hex(what)[..],
+			extra,
+		));
 		let (sig, recovery_id) = libsecp256k1::sign(&libsecp256k1::Message::parse(&msg), secret);
 		let mut r = [0u8; 65];
 		r[0..64].copy_from_slice(&sig.serialize()[..]);
