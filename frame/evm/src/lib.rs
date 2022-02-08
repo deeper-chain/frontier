@@ -690,6 +690,7 @@ pub trait OnChargeEVMTransaction<T: Config> {
 	fn correct_and_deposit_fee(
 		who: &H160,
 		corrected_fee: U256,
+		base_fee: U256,
 		already_withdrawn: Self::LiquidityInfo,
 	);
 
@@ -735,6 +736,7 @@ where
 	fn correct_and_deposit_fee(
 		who: &H160,
 		corrected_fee: U256,
+		base_fee: U256,
 		already_withdrawn: Self::LiquidityInfo,
 	) {
 		if let Some(paid) = already_withdrawn {
@@ -754,7 +756,7 @@ where
 			// https://github.com/paritytech/substrate/issues/10117
 			// If we tried to refund something, the account still empty and the ED is set to 0,
 			// we call `make_free_balance_be` with the refunded amount.
-			let refund_imbalance = if C::minimum_balance().is_zero()
+			let _refund_imbalance = if C::minimum_balance().is_zero()
 				&& refund_amount > C::Balance::zero()
 				&& C::total_balance(&account_id).is_zero()
 			{
@@ -768,12 +770,7 @@ where
 				refund_imbalance
 			};
 
-			// merge the imbalance caused by paying the fees and refunding parts of it again.
-			let adjusted_paid = paid
-				.offset(refund_imbalance)
-				.same()
-				.unwrap_or_else(|_| C::NegativeImbalance::zero());
-			OU::on_unbalanced(adjusted_paid);
+			OU::on_unbalanced(/* base_fee to C::NegativeImbalance ??? */);
 		}
 	}
 
@@ -804,9 +801,10 @@ impl<T> OnChargeEVMTransaction<T> for ()
 	fn correct_and_deposit_fee(
 		who: &H160,
 		corrected_fee: U256,
+		base_fee: U256,
 		already_withdrawn: Self::LiquidityInfo,
 	) {
-		<EVMCurrencyAdapter::<<T as Config>::Currency, ()> as OnChargeEVMTransaction<T>>::correct_and_deposit_fee(who, corrected_fee, already_withdrawn)
+		<EVMCurrencyAdapter::<<T as Config>::Currency, ()> as OnChargeEVMTransaction<T>>::correct_and_deposit_fee(who, corrected_fee, base_fee, already_withdrawn)
 	}
 
 	fn pay_priority_fee(tip: U256) {

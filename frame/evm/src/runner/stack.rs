@@ -118,18 +118,19 @@ impl<T: Config> Runner<T> {
 		let (reason, retv) = f(&mut executor);
 
 		let used_gas = U256::from(executor.used_gas());
-		let (actual_fee, actual_priority_fee) =
+		let (actual_fee, actual_base_fee, actual_priority_fee) =
 			if let Some(max_priority_fee) = max_priority_fee_per_gas {
 				let actual_priority_fee = max_priority_fee
 					.checked_mul(U256::from(used_gas))
 					.ok_or(Error::<T>::FeeOverflow)?;
-				let actual_fee = executor
-					.fee(base_fee)
+				let actual_base_fee = executor.fee(base_fee);
+				let actual_fee = actual_base_fee
 					.checked_add(actual_priority_fee)
 					.unwrap_or(U256::max_value());
-				(actual_fee, Some(actual_priority_fee))
+				(actual_fee, actual_base_fee, Some(actual_priority_fee))
 			} else {
-				(executor.fee(base_fee), None)
+				let actual_base_fee = executor.fee(base_fee);
+				(actual_base_fee, actual_base_fee, None)
 			};
 		log::debug!(
 			target: "evm",
@@ -161,7 +162,7 @@ impl<T: Config> Runner<T> {
 		// Refunded 320 - 40 = 280.
 		// Tip 5 * 6 = 30.
 		// Burned 320 - (280 + 30) = 10. Which is equivalent to gas_used * base_fee.
-		T::OnChargeTransaction::correct_and_deposit_fee(&source, actual_fee, fee);
+		T::OnChargeTransaction::correct_and_deposit_fee(&source, actual_fee, actual_base_fee, fee);
 		if let Some(actual_priority_fee) = actual_priority_fee {
 			T::OnChargeTransaction::pay_priority_fee(actual_priority_fee);
 		}
