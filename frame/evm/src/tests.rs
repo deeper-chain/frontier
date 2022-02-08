@@ -20,10 +20,7 @@
 use super::*;
 use crate::mock::*;
 
-use frame_support::{
-	assert_ok,
-	traits::GenesisBuild,
-};
+use frame_support::{assert_ok, traits::GenesisBuild};
 use std::{collections::BTreeMap, str::FromStr};
 
 type Balances = pallet_balances::Pallet<Test>;
@@ -87,14 +84,18 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 	pallet_balances::GenesisConfig::<Test> {
 		// Create the block author account with some balance.
-		balances: vec![(
-			AccountId32::new([3u8; 32]),
-			12345,
-		)],
+		balances: vec![(AccountId32::new([3u8; 32]), 12345)],
 	}
 	.assimilate_storage(&mut t)
 	.expect("Pallet balances storage can be assimilated");
-	GenesisBuild::<Test>::assimilate_storage(&crate::GenesisConfig { account_pairs, accounts }, &mut t).unwrap();
+	GenesisBuild::<Test>::assimilate_storage(
+		&crate::GenesisConfig {
+			account_pairs,
+			accounts,
+		},
+		&mut t,
+	)
+	.unwrap();
 	t.into()
 }
 

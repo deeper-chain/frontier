@@ -20,7 +20,11 @@
 use super::*;
 use crate::IntermediateStateRoot;
 use ethereum::{TransactionAction, TransactionSignature};
-use frame_support::{parameter_types, traits::{GenesisBuild, FindAuthor, IsType}, ConsensusEngineId, PalletId};
+use frame_support::{
+	parameter_types,
+	traits::{FindAuthor, GenesisBuild, IsType},
+	ConsensusEngineId, PalletId,
+};
 use pallet_evm::{AddressMapping, FeeCalculator};
 use rlp::*;
 use sha3::Digest;
@@ -154,11 +158,14 @@ where
 	}
 
 	fn ensure_address_origin(address: &H160, origin: &T::AccountId) -> Result<(), DispatchError> {
-		if pallet_evm::Accounts::<T>::contains_key(&address) &&
-		   pallet_evm::Accounts::<T>::get(address) == *origin {
+		if pallet_evm::Accounts::<T>::contains_key(&address)
+			&& pallet_evm::Accounts::<T>::get(address) == *origin
+		{
 			Ok(())
 		} else {
-			Err(DispatchError::Other("eth and substrate addresses are not paired"))
+			Err(DispatchError::Other(
+				"eth and substrate addresses are not paired",
+			))
 		}
 	}
 }
@@ -276,10 +283,7 @@ pub fn new_test_ext(accounts_len: usize) -> (Vec<AccountInfo>, sp_io::TestExtern
 
 	let mut account_pairs = BTreeMap::new();
 	for i in 0..pairs.len() {
-		account_pairs.insert(
-			pairs[i].address.clone(),
-			pairs[i].account_id.clone(),
-		);
+		account_pairs.insert(pairs[i].address.clone(), pairs[i].account_id.clone());
 	}
 
 	let mut accounts = BTreeMap::new();
@@ -298,7 +302,8 @@ pub fn new_test_ext(accounts_len: usize) -> (Vec<AccountInfo>, sp_io::TestExtern
 	}
 
 	pallet_evm::GenesisConfig::<Test> {
-		account_pairs, accounts,
+		account_pairs,
+		accounts,
 	}
 	.assimilate_storage(&mut ext)
 	.expect("Pallet balances storage can be assimilated");
