@@ -46,7 +46,7 @@ pub use frame_support::{
 };
 pub use pallet_balances::Call as BalancesCall;
 use pallet_ethereum::{Call::transact, Transaction as EthereumTransaction};
-use pallet_evm::{Account as EVMAccount, PairedAddressMapping, Runner, EVMCurrencyAdapter};
+use pallet_evm::{Account as EVMAccount, PairedAddressMapping, Runner};
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
 #[cfg(any(feature = "std", test))]
@@ -296,16 +296,8 @@ impl<F: FindAuthor<u32>> FindAuthor<H160> for FindAuthorTruncated<F> {
 	}
 }
 
-pub struct EvmDealWithFees;
-impl OnUnbalanced<NegativeImbalance> for EvmDealWithFees {
-	fn on_unbalanced(fees: NegativeImbalance) {
-		// 100% to treasury
-		Treasury::on_unbalanced(fees);
-	}
-}
-
 parameter_types! {
-	pub const ChainId: u64 = 518;
+	pub const ChainId: u64 = 42;
 	pub BlockGasLimit: U256 = U256::from(u32::max_value());
 	pub PrecompilesValue: FrontierPrecompiles<Runtime> = FrontierPrecompiles::<_>::new();
 }
@@ -322,7 +314,7 @@ impl pallet_evm::Config for Runtime {
 	type PrecompilesValue = PrecompilesValue;
 	type ChainId = ChainId;
 	type BlockGasLimit = BlockGasLimit;
-	type OnChargeTransaction = EVMCurrencyAdapter<Balances, EvmDealWithFees>;
+	type OnChargeTransaction = ();
 	type FindAuthor = FindAuthorTruncated<Aura>;
 }
 
