@@ -102,6 +102,7 @@ pub mod pallet {
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -455,7 +456,7 @@ pub mod pallet {
 	/// Eth Address => AccountId
 	#[pallet::storage]
 	#[pallet::getter(fn accounts)]
-	pub type Accounts<T: Config> = StorageMap<_, Blake2_128Concat, H160, T::AccountId, ValueQuery>;
+	pub type Accounts<T: Config> = StorageMap<_, Blake2_128Concat, H160, T::AccountId, OptionQuery>;
 
 	/// AccountId => Eth Address
 	#[pallet::storage]
@@ -497,23 +498,29 @@ where
 {
 	fn into_account_id(address: H160) -> T::AccountId {
 		if Accounts::<T>::contains_key(&address) {
-			Accounts::<T>::get(address)
-		} else {
-			let mut data: [u8; 32] = [0u8; 32];
-			data[0..4].copy_from_slice(b"evm:");
-			data[4..24].copy_from_slice(&address[..]);
-			AccountId32::from(data).into()
-		}
+			if let Some(acc) = Accounts::<T>::get(address) {
+				return acc;
+			} 
+		} 
+
+		let mut data: [u8; 32] = [0u8; 32];
+		data[0..4].copy_from_slice(b"evm:");
+		data[4..24].copy_from_slice(&address[..]);
+		AccountId32::from(data).into()
+	
 	}
 
 	fn ensure_address_origin(address: &H160, origin: &T::AccountId) -> Result<(), DispatchError> {
-		if Accounts::<T>::contains_key(&address) && Accounts::<T>::get(address) == *origin {
-			Ok(())
-		} else {
-			Err(DispatchError::Other(
-				"eth and substrate addresses are not paired",
-			))
+
+		if let Some(acc) = Accounts::<T>::get(address) {
+			if acc == *origin {
+				return	Ok(());
+			}
 		}
+		
+		Err(DispatchError::Other(
+			"eth and substrate addresses are not paired",
+		))
 	}
 }
 
