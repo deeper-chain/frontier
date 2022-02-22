@@ -4327,7 +4327,7 @@ dependencies = [
 [[package]]
 name = "pallet-balances"
 version = "3.0.0"
-source = "git+https://github.com/deeper-chain/deeper-chain.git?branch=feature/polkadot0.9.16_dev#8954285d9d92a8885d604cafe28826d32caa0118"
+source = "git+https://github.com/deeper-chain/deeper-balances.git#5e8bfeb790026faeb09e9aa6c7e95fbabf271108"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
