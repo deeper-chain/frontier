@@ -11,7 +11,7 @@ use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
 use frontier_template_runtime::{self, opaque::Block, RuntimeApi, SLOT_DURATION};
 use futures::StreamExt;
 use sc_cli::SubstrateCli;
-use sc_client_api::{BlockchainEvents, ExecutorProvider, BlockBackend};
+use sc_client_api::{BlockBackend, BlockchainEvents, ExecutorProvider};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 #[cfg(feature = "manual-seal")]
 use sc_consensus_manual_seal::{self as manual_seal};
@@ -174,7 +174,9 @@ pub fn new_partial(
 	let client = Arc::new(client);
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
-		task_manager.spawn_handle().spawn("telemetry", None, worker.run());
+		task_manager
+			.spawn_handle()
+			.spawn("telemetry", None, worker.run());
 		telemetry
 	});
 
@@ -322,7 +324,11 @@ pub fn new_full(mut config: Configuration, cli: &Cli) -> Result<TaskManager, Ser
 	}
 
 	let grandpa_protocol_name = sc_finality_grandpa::protocol_standard_name(
-		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
+		&client
+			.block_hash(0)
+			.ok()
+			.flatten()
+			.expect("Genesis block exists; qed"),
 		&config.chain_spec,
 	);
 
@@ -332,7 +338,9 @@ pub fn new_full(mut config: Configuration, cli: &Cli) -> Result<TaskManager, Ser
 			config
 				.network
 				.extra_sets
-				.push(sc_finality_grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone()));
+				.push(sc_finality_grandpa::grandpa_peers_set_config(
+					grandpa_protocol_name.clone(),
+				));
 			Some(Arc::new(
 				sc_finality_grandpa::warp_proof::NetworkProvider::new(
 					backend.clone(),
@@ -663,7 +671,6 @@ pub fn new_full(mut config: Configuration, cli: &Cli) -> Result<TaskManager, Ser
 	network_starter.start_network();
 	Ok(task_manager)
 }
-
 
 #[cfg(feature = "manual-seal")]
 pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {

@@ -18,7 +18,6 @@ codec = { package = "parity-scale-codec", version = "2.0.0", default-features = 
 frame-support = { branch = "polkadot-v0.9.16", default-features = false, git = "https://github.com/paritytech/substrate" }
 frame-system = { branch = "polkadot-v0.9.16", default-features = false, git = "https://github.com/paritytech/substrate" }
 pallet-timestamp = { branch = "polkadot-v0.9.16", default-features = false, git = "https://github.com/paritytech/substrate" }
-pallet-balances = { branch = "feature/polkadot0.9.16_dev", default-features = false, git = "https://github.com/deeper-chain/deeper-chain.git" }
 sp-core = { branch = "polkadot-v0.9.16", default-features = false, git = "https://github.com/paritytech/substrate" }
 sp-runtime = { branch = "polkadot-v0.9.16", default-features = false, git = "https://github.com/paritytech/substrate" }
 sp-std = { branch = "polkadot-v0.9.16", default-features = false, git = "https://github.com/paritytech/substrate" }
@@ -35,6 +34,9 @@ log = { version = "0.4", default-features = false }
 hex = { version = "0.4", default-features = false }
 scale-info = { version = "1.0.0", default-features = false, features = ["derive"] }
 libsecp256k1 = { version = "0.6", default-features = false, features = ["hmac", "static-context"], optional = true }
+
+[dev-dependencies]
+pallet-balances = { branch = "polkadot-v0.9.16", default-features = false, git = "https://github.com/paritytech/substrate" }
 
 [features]
 default = ["std"]
