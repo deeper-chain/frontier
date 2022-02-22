@@ -500,24 +500,22 @@ where
 		if Accounts::<T>::contains_key(&address) {
 			if let Some(acc) = Accounts::<T>::get(address) {
 				return acc;
-			} 
-		} 
+			}
+		}
 
 		let mut data: [u8; 32] = [0u8; 32];
 		data[0..4].copy_from_slice(b"evm:");
 		data[4..24].copy_from_slice(&address[..]);
 		AccountId32::from(data).into()
-	
 	}
 
 	fn ensure_address_origin(address: &H160, origin: &T::AccountId) -> Result<(), DispatchError> {
-
 		if let Some(acc) = Accounts::<T>::get(address) {
 			if acc == *origin {
-				return	Ok(());
+				return Ok(());
 			}
 		}
-		
+
 		Err(DispatchError::Other(
 			"eth and substrate addresses are not paired",
 		))
@@ -793,7 +791,9 @@ where
 				.same()
 				.unwrap_or_else(|_| C::NegativeImbalance::zero());
 			if adjusted_paid.peek() > priority_fee.low_u128().unique_saturated_into() {
-				adjusted_paid = adjusted_paid.split(priority_fee.low_u128().unique_saturated_into()).1;
+				adjusted_paid = adjusted_paid
+					.split(priority_fee.low_u128().unique_saturated_into())
+					.1;
 				OU::on_unbalanced(adjusted_paid);
 			}
 		}
