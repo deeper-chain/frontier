@@ -887,7 +887,7 @@ impl Default for EthereumStorageSchema {
 pub struct IntermediateStateRoot;
 impl Get<H256> for IntermediateStateRoot {
 	fn get() -> H256 {
-		H256::decode(&mut &sp_io::storage::root()[..])
+		H256::decode(&mut &sp_io::storage::root(sp_runtime::StateVersion::V1)[..])
 			.expect("Node is configured to use the same hash; qed")
 	}
 }
