@@ -1591,6 +1591,7 @@ version = "1.1.0-dev"
 dependencies = [
  "ethereum",
  "ethereum-types",
+ "evm",
  "jsonrpc-core",
  "jsonrpc-core-client",
  "jsonrpc-derive",
@@ -1722,6 +1723,7 @@ version = "3.0.0-dev"
 dependencies = [
  "ethereum",
  "ethereum-types",
+ "evm",
  "fp-evm",
  "parity-scale-codec",
  "scale-info",

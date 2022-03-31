@@ -26,7 +26,7 @@ use fc_rpc_core::{
 	types::{
 		Block, BlockNumber, BlockTransactions, Bytes, CallRequest, FeeHistory, FeeHistoryCache,
 		FeeHistoryCacheItem, Filter, FilterChanges, FilterPool, FilterPoolItem, FilterType,
-		FilteredParams, Header, Index, Log, PeerCount, Receipt, Rich, RichBlock, SyncInfo,
+		FilteredParams, Header, Index, Log, PeerCount, Receipt, Rich, RichBlock, Status, SyncInfo,
 		SyncStatus, Transaction, TransactionMessage, TransactionRequest, Work,
 	},
 	EthApi as EthApiT, EthFilterApi as EthFilterApiT, NetApi as NetApiT, Web3Api as Web3ApiT,
@@ -2222,6 +2222,56 @@ where
 			"Failed to retrieve requested block {:?}.",
 			newest_block
 		)))
+	}
+
+	fn transaction_status(&self, hash: H256) -> BoxFuture<Result<Option<Status>>> {
+		let client = Arc::clone(&self.client);
+		let block_data_cache = Arc::clone(&self.block_data_cache);
+		let backend = Arc::clone(&self.backend);
+
+		Box::pin(async move {
+			let (hash, index) = match frontier_backend_client::load_transactions::<B, C>(
+				client.as_ref(),
+				backend.as_ref(),
+				hash,
+				true,
+			)
+			.map_err(|err| internal_err(format!("{:?}", err)))?
+			{
+				Some((hash, index)) => (hash, index as usize),
+				None => return Ok(None),
+			};
+
+			let id = match frontier_backend_client::load_hash::<B>(backend.as_ref(), hash)
+				.map_err(|err| internal_err(format!("{:?}", err)))?
+			{
+				Some(hash) => hash,
+				_ => return Ok(None),
+			};
+			let substrate_hash = client
+				.expect_block_hash_from_id(&id)
+				.map_err(|_| internal_err(format!("Expect block number from id: {}", id)))?;
+
+			let schema =
+				frontier_backend_client::onchain_storage_schema::<B, C, BE>(client.as_ref(), id);
+			let statuses = block_data_cache
+				.current_transaction_statuses(schema, substrate_hash)
+				.await;
+
+			if let Some(statuses) = statuses {
+				let status = statuses[index].clone();
+				return Ok(Some(Status {
+					transaction_hash: Some(status.transaction_hash),
+					transaction_index: Some(status.transaction_index.into()),
+					from: Some(status.from),
+					to: status.to,
+					contract_address: status.contract_address,
+					reason: status.reason,
+				}));
+			} else {
+				return Ok(None);
+			}
+		})
 	}
 }
 

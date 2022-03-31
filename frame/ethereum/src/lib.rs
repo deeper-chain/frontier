@@ -614,13 +614,14 @@ impl<T: Config> Pallet<T> {
 
 		let (reason, status, used_gas, dest) = match info {
 			CallOrCreateInfo::Call(info) => (
-				info.exit_reason,
+				info.exit_reason.clone(),
 				TransactionStatus {
 					transaction_hash,
 					transaction_index,
 					from: source,
 					to,
 					contract_address: None,
+					reason: Some(info.exit_reason),
 					logs: info.logs.clone(),
 					logs_bloom: {
 						let mut bloom: Bloom = Bloom::default();
@@ -632,13 +633,14 @@ impl<T: Config> Pallet<T> {
 				to,
 			),
 			CallOrCreateInfo::Create(info) => (
-				info.exit_reason,
+				info.exit_reason.clone(),
 				TransactionStatus {
 					transaction_hash,
 					transaction_index,
 					from: source,
 					to,
 					contract_address: Some(info.value),
+					reason: Some(info.exit_reason),
 					logs: info.logs.clone(),
 					logs_bloom: {
 						let mut bloom: Bloom = Bloom::default();

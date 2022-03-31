@@ -20,6 +20,7 @@
 use codec::{Decode, Encode};
 use ethereum::Log;
 use ethereum_types::Bloom;
+use evm::ExitReason;
 use sp_core::{H160, H256, U256};
 use sp_runtime::{traits::Block as BlockT, Permill};
 use sp_std::vec::Vec;
@@ -33,6 +34,7 @@ pub struct TransactionStatus {
 	pub from: H160,
 	pub to: Option<H160>,
 	pub contract_address: Option<H160>,
+	pub reason: Option<ExitReason>,
 	pub logs: Vec<Log>,
 	pub logs_bloom: Bloom,
 }
@@ -45,6 +47,7 @@ impl Default for TransactionStatus {
 			from: H160::default(),
 			to: None,
 			contract_address: None,
+			reason: None,
 			logs: Vec::new(),
 			logs_bloom: Bloom::default(),
 		}

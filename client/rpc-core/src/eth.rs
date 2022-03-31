@@ -24,7 +24,7 @@ use jsonrpc_derive::rpc;
 
 use crate::types::{
 	BlockNumber, Bytes, CallRequest, FeeHistory, Filter, FilterChanges, Index, Log, Receipt,
-	RichBlock, SyncStatus, Transaction, TransactionRequest, Work,
+	RichBlock, Status, SyncStatus, Transaction, TransactionRequest, Work,
 };
 pub use rpc_impl_EthApi::gen_server::EthApi as EthApiServer;
 pub use rpc_impl_EthFilterApi::gen_server::EthFilterApi as EthFilterApiServer;
@@ -187,6 +187,10 @@ pub trait EthApi {
 		newest_block: BlockNumber,
 		reward_percentiles: Option<Vec<f64>>,
 	) -> Result<FeeHistory>;
+
+	/// Returns transaction status by transaction hash.
+	#[rpc(name = "eth_getTransactionStatus")]
+	fn transaction_status(&self, _: H256) -> BoxFuture<Result<Option<Status>>>;
 }
 
 /// Eth filters rpc api (polling).
