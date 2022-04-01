@@ -268,7 +268,7 @@ impl<T: Config> RunnerT<T> for Runner<T> {
 			|executor| {
 				let address = executor.create_address(evm::CreateScheme::Legacy { caller: source });
 				(
-					executor.transact_create(source, value, init, gas_limit, access_list),
+					executor.transact_create(source, value, init, gas_limit, access_list).0,
 					address,
 				)
 			},
@@ -305,7 +305,7 @@ impl<T: Config> RunnerT<T> for Runner<T> {
 					salt,
 				});
 				(
-					executor.transact_create2(source, value, init, salt, gas_limit, access_list),
+					executor.transact_create2(source, value, init, salt, gas_limit, access_list).0,
 					address,
 				)
 			},

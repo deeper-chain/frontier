@@ -625,7 +625,7 @@ impl<T: Config> Pallet<T> {
 		let mut r = [0u8; 65];
 		r[0..64].copy_from_slice(&sig.serialize()[..]);
 		r[64] = recovery_id.serialize();
-		EcdsaSignature::from_slice(&r)
+		EcdsaSignature::from_slice(&r).unwrap_or_default()
 	}
 
 	/// Check whether an account is empty.
