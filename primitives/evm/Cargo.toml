@@ -18,7 +18,7 @@ sp-std = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/sub
 serde = { version = "1.0.101", optional = true, features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "3.1.2", default-features = false }
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
-evm = { branch = "sp-release-34", git = "https://github.com/baidang201/evm", default-features = false, features = ["with-codec"] }
+evm = { version = "0.35.0", default-features = false, features = ["with-codec"] }
 
 [features]
 default = ["std"]
