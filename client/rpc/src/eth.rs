@@ -31,7 +31,7 @@ use fc_rpc_core::{
 	},
 	EthApi as EthApiT, EthFilterApi as EthFilterApiT, NetApi as NetApiT, Web3Api as Web3ApiT,
 };
-use fp_rpc::{ConvertTransaction, EthereumRuntimeRPCApi, TransactionStatus};
+use fp_rpc::{ConvertTransaction, EthereumRuntimeRPCApi, TransactionStatusV2 as TransactionStatus};
 use futures::{future::TryFutureExt, StreamExt};
 use jsonrpc_core::{futures::future, BoxFuture, Result};
 use lru::LruCache;
@@ -1184,7 +1184,7 @@ where
 
 					error_on_execution_failure(&info.exit_reason, &info.value)?;
 					Ok(Bytes(info.value))
-				} else if api_version == 4 {
+				} else if api_version <= 6 {
 					// Post-london + access list support
 					let access_list = access_list.unwrap_or_default();
 					let info = api
@@ -1255,7 +1255,7 @@ where
 
 					error_on_execution_failure(&info.exit_reason, &[])?;
 					Ok(Bytes(info.value[..].to_vec()))
-				} else if api_version == 4 {
+				} else if api_version <= 6 {
 					// Post-london + access list support
 					let access_list = access_list.unwrap_or_default();
 					let info = api
