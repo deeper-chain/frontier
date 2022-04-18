@@ -382,8 +382,6 @@ pub mod pallet {
 		GasPriceTooLow,
 		/// Nonce is invalid
 		InvalidNonce,
-		/// AccountId has mapped
-		AccountIdHasMapped,
 		/// Eth address has mapped
 		EthAddressHasMapped,
 		/// Bad signature
