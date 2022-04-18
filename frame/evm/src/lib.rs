@@ -154,7 +154,7 @@ pub mod pallet {
 		/// - `eth_signature`: A signature to prove the ownership Eth address
 		// todo: 1.weight, 2.cancel account pair
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(4,2))]
-		pub fn pair_accounts(
+		pub fn multi_pair_accounts(
 			origin: OriginFor<T>,
 			eth_address: H160,
 			eth_signature: EcdsaSignature,
@@ -382,8 +382,6 @@ pub mod pallet {
 		GasPriceTooLow,
 		/// Nonce is invalid
 		InvalidNonce,
-		/// AccountId has mapped
-		AccountIdHasMapped,
 		/// Eth address has mapped
 		EthAddressHasMapped,
 		/// Bad signature
