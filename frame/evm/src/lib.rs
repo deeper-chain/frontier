@@ -102,6 +102,7 @@ pub mod pallet {
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -152,7 +153,7 @@ pub mod pallet {
 		/// - `eth_address`: The Eth address to bind to the caller's Substrate account
 		/// - `eth_signature`: A signature to prove the ownership Eth address
 		// todo: 1.weight, 2.cancel account pair
-		#[pallet::weight(0)]
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(4,2))]
 		pub fn pair_accounts(
 			origin: OriginFor<T>,
 			eth_address: H160,
@@ -160,11 +161,6 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
-			// ensure account_id and eth_address have NOT been mapped
-			ensure!(
-				!EthAddresses::<T>::contains_key(&who),
-				Error::<T>::AccountIdHasMapped
-			);
 			ensure!(
 				!Accounts::<T>::contains_key(eth_address),
 				Error::<T>::EthAddressHasMapped
@@ -189,7 +185,6 @@ pub mod pallet {
 			}
 
 			Accounts::<T>::insert(eth_address, &who);
-			EthAddresses::<T>::insert(&who, address);
 
 			Self::deposit_event(Event::PairedAccounts(who, eth_address));
 			Ok(().into())
@@ -418,7 +413,6 @@ pub mod pallet {
 		fn build(&self) {
 			for (eth_addr, account_id) in &self.account_pairs {
 				<Accounts<T>>::insert(eth_addr, account_id);
-				<EthAddresses<T>>::insert(account_id, eth_addr);
 			}
 			for (address, account) in &self.accounts {
 				let account_id = T::AddressMapping::into_account_id(*address);
@@ -455,13 +449,7 @@ pub mod pallet {
 	/// Eth Address => AccountId
 	#[pallet::storage]
 	#[pallet::getter(fn accounts)]
-	pub type Accounts<T: Config> = StorageMap<_, Blake2_128Concat, H160, T::AccountId, ValueQuery>;
-
-	/// AccountId => Eth Address
-	#[pallet::storage]
-	#[pallet::getter(fn eth_addresses)]
-	pub type EthAddresses<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, H160, ValueQuery>;
+	pub type Accounts<T: Config> = StorageMap<_, Blake2_128Concat, H160, T::AccountId, OptionQuery>;
 }
 
 /// Type alias for currency balance.
@@ -497,23 +485,27 @@ where
 {
 	fn into_account_id(address: H160) -> T::AccountId {
 		if Accounts::<T>::contains_key(&address) {
-			Accounts::<T>::get(address)
-		} else {
-			let mut data: [u8; 32] = [0u8; 32];
-			data[0..4].copy_from_slice(b"evm:");
-			data[4..24].copy_from_slice(&address[..]);
-			AccountId32::from(data).into()
+			if let Some(acc) = Accounts::<T>::get(address) {
+				return acc;
+			}
 		}
+
+		let mut data: [u8; 32] = [0u8; 32];
+		data[0..4].copy_from_slice(b"evm:");
+		data[4..24].copy_from_slice(&address[..]);
+		AccountId32::from(data).into()
 	}
 
 	fn ensure_address_origin(address: &H160, origin: &T::AccountId) -> Result<(), DispatchError> {
-		if Accounts::<T>::contains_key(&address) && Accounts::<T>::get(address) == *origin {
-			Ok(())
-		} else {
-			Err(DispatchError::Other(
-				"eth and substrate addresses are not paired",
-			))
+		if let Some(acc) = Accounts::<T>::get(address) {
+			if acc == *origin {
+				return Ok(());
+			}
 		}
+
+		Err(DispatchError::Other(
+			"eth and substrate addresses are not paired",
+		))
 	}
 }
 
@@ -786,7 +778,9 @@ where
 				.same()
 				.unwrap_or_else(|_| C::NegativeImbalance::zero());
 			if adjusted_paid.peek() > priority_fee.low_u128().unique_saturated_into() {
-				adjusted_paid = adjusted_paid.split(priority_fee.low_u128().unique_saturated_into()).1;
+				adjusted_paid = adjusted_paid
+					.split(priority_fee.low_u128().unique_saturated_into())
+					.1;
 				OU::on_unbalanced(adjusted_paid);
 			}
 		}

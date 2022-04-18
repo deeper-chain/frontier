@@ -115,7 +115,7 @@ fn fee_deduction() {
 		assert_eq!(Balances::free_balance(&substrate_addr), 90);
 
 		// Refund fees as 5 units
-		<<Test as Config>::OnChargeTransaction as OnChargeEVMTransaction<Test>>::correct_and_deposit_fee(&evm_addr, U256::from(5), U256::from(5), U256::from(0), imbalance);
+		<<Test as Config>::OnChargeTransaction as OnChargeEVMTransaction<Test>>::correct_and_deposit_fee(&evm_addr, U256::from(5), U256::from(0), imbalance);
 		assert_eq!(Balances::free_balance(&substrate_addr), 95);
 	});
 }
@@ -345,7 +345,7 @@ fn handle_sufficient_reference() {
 
 		// Using the create / remove account functions is the correct way to handle it.
 		EVM::create_account(addr_2, vec![1, 2, 3]);
-		let account_2 = frame_system::Account::<Test>::get(substrate_addr_2);
+		let account_2 = frame_system::Account::<Test>::get(substrate_addr_2.clone());
 		// We increased the sufficient reference by 1.
 		assert_eq!(account_2.sufficients, 1);
 		EVM::remove_account(&addr_2);

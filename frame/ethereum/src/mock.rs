@@ -85,6 +85,7 @@ impl frame_system::Config for Test {
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
 	type OnSetCode = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 parameter_types! {
@@ -102,6 +103,8 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
 }
 
 parameter_types! {
@@ -148,7 +151,7 @@ where
 	// Returns the AccountId used go generate the given Eth Address.
 	fn into_account_id(address: H160) -> T::AccountId {
 		if pallet_evm::Accounts::<T>::contains_key(&address) {
-			pallet_evm::Accounts::<T>::get(address)
+			pallet_evm::Accounts::<T>::get(address).unwrap()
 		} else {
 			let mut data: [u8; 32] = [0u8; 32];
 			data[0..4].copy_from_slice(b"evm:");
@@ -159,7 +162,7 @@ where
 
 	fn ensure_address_origin(address: &H160, origin: &T::AccountId) -> Result<(), DispatchError> {
 		if pallet_evm::Accounts::<T>::contains_key(&address)
-			&& pallet_evm::Accounts::<T>::get(address) == *origin
+			&& pallet_evm::Accounts::<T>::get(address).unwrap() == *origin
 		{
 			Ok(())
 		} else {

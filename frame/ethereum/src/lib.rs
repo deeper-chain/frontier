@@ -166,12 +166,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 
 	#[pallet::config]
-	pub trait Config:
-		frame_system::Config
-		+ pallet_balances::Config
-		+ pallet_timestamp::Config
-		+ pallet_evm::Config
-	{
+	pub trait Config: frame_system::Config + pallet_timestamp::Config + pallet_evm::Config {
 		/// The overarching event type.
 		type Event: From<Event> + IsType<<Self as frame_system::Config>::Event>;
 		/// How Ethereum state root is calculated.
@@ -180,6 +175,7 @@ pub mod pallet {
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::without_storage_info]
 	pub struct Pallet<T>(PhantomData<T>);
 
 	#[pallet::origin]
@@ -187,7 +183,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_finalize(n: T::BlockNumber) {
+		fn on_finalize(n: <T as frame_system::Config>::BlockNumber) {
 			<Pallet<T>>::store_block(
 				fp_consensus::find_pre_log(&frame_system::Pallet::<T>::digest()).is_err(),
 				U256::from(UniqueSaturatedInto::<u128>::unique_saturated_into(
@@ -195,7 +191,7 @@ pub mod pallet {
 				)),
 			);
 			// move block hash pruning window by one block
-			let block_hash_count = T::BlockHashCount::get();
+			let block_hash_count = <T as frame_system::Config>::BlockHashCount::get();
 			let to_remove = n
 				.saturating_sub(block_hash_count)
 				.saturating_sub(One::one());
@@ -207,9 +203,9 @@ pub mod pallet {
 			}
 		}
 
-		fn on_initialize(_: T::BlockNumber) -> Weight {
+		fn on_initialize(_: <T as frame_system::Config>::BlockNumber) -> Weight {
 			Pending::<T>::kill();
-			let mut weight = T::SystemWeightInfo::kill_storage(1);
+			let mut weight = <T as frame_system::Config>::SystemWeightInfo::kill_storage(1);
 
 			// If the digest contain an existing ethereum block(encoded as PreLog), If contains,
 			// execute the imported block firstly and disable transact dispatch function.
@@ -233,11 +229,11 @@ pub mod pallet {
 			//	- read: frame_system::Pallet::<T>::block_number()
 			//	- write: <Pallet<T>>::store_block()
 			//	- write: <BlockHash<T>>::remove()
-			weight.saturating_add(T::DbWeight::get().reads_writes(2, 2))
+			weight.saturating_add(<T as frame_system::Config>::DbWeight::get().reads_writes(2, 2))
 		}
 
 		fn on_runtime_upgrade() -> Weight {
-			let mut weight = T::DbWeight::get().reads_writes(1, 1);
+			let mut weight = <T as frame_system::Config>::DbWeight::get().reads_writes(1, 1);
 			if frame_support::storage::unhashed::get::<EthereumStorageSchema>(
 				&PALLET_ETHEREUM_SCHEMA,
 			) < Some(EthereumStorageSchema::V3)
@@ -246,7 +242,7 @@ pub mod pallet {
 				HeightOffset::<T>::put(UniqueSaturatedInto::<u64>::unique_saturated_into(
 					frame_system::Pallet::<T>::block_number(),
 				));
-				weight += T::DbWeight::get().reads_writes(0, 2)
+				weight += <T as frame_system::Config>::DbWeight::get().reads_writes(0, 2)
 			}
 			frame_support::storage::unhashed::put::<EthereumStorageSchema>(
 				&PALLET_ETHEREUM_SCHEMA,
@@ -468,7 +464,7 @@ impl<T: Config> Pallet<T> {
 		BlockHash::<T>::insert(block_number, block.header.hash());
 
 		if post_log {
-			let digest = DigestItem::<T::Hash>::Consensus(
+			let digest = DigestItem::Consensus(
 				FRONTIER_ENGINE_ID,
 				PostLog::Hashes(fp_consensus::Hashes::from_block(block)).encode(),
 			);
@@ -891,7 +887,7 @@ impl Default for EthereumStorageSchema {
 pub struct IntermediateStateRoot;
 impl Get<H256> for IntermediateStateRoot {
 	fn get() -> H256 {
-		H256::decode(&mut &sp_io::storage::root()[..])
+		H256::decode(&mut &sp_io::storage::root(sp_runtime::StateVersion::V1)[..])
 			.expect("Node is configured to use the same hash; qed")
 	}
 }
