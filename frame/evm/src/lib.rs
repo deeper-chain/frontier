@@ -154,13 +154,43 @@ pub mod pallet {
 		/// - `eth_signature`: A signature to prove the ownership Eth address
 		// todo: 1.weight, 2.cancel account pair
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(4,2))]
-		pub fn multi_pair_accounts(
+		pub fn device_pair_multi_accounts(
 			origin: OriginFor<T>,
 			eth_address: H160,
 			eth_signature: EcdsaSignature,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
+			ensure!(
+				!Accounts::<T>::contains_key(eth_address),
+				Error::<T>::EthAddressHasMapped
+			);
+
+			// recover evm address from signature
+			let address =
+				Self::eth_recover(&eth_signature, &who.using_encoded(to_ascii_hex), &[][..])
+					.ok_or(Error::<T>::BadSignature)?;
+			ensure!(eth_address == address, Error::<T>::InvalidSignature);
+
+			Accounts::<T>::insert(eth_address, &who);
+
+			Self::deposit_event(Event::DevicePairedAccounts(who, eth_address));
+			Ok(().into())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(4,2))]
+		pub fn pair_accounts(
+			origin: OriginFor<T>,
+			eth_address: H160,
+			eth_signature: EcdsaSignature,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			// ensure account_id and eth_address have NOT been mapped
+			ensure!(
+				!EthAddresses::<T>::contains_key(&who),
+				Error::<T>::AccountIdHasMapped
+			);
 			ensure!(
 				!Accounts::<T>::contains_key(eth_address),
 				Error::<T>::EthAddressHasMapped
@@ -185,6 +215,7 @@ pub mod pallet {
 			}
 
 			Accounts::<T>::insert(eth_address, &who);
+			EthAddresses::<T>::insert(&who, address);
 
 			Self::deposit_event(Event::PairedAccounts(who, eth_address));
 			Ok(().into())
@@ -366,6 +397,8 @@ pub mod pallet {
 		BalanceWithdraw(T::AccountId, H160, U256),
 		/// Mapping between Substrate accounts and Eth accounts
 		PairedAccounts(T::AccountId, H160),
+		/// Mapping between Substrate accounts and Multi Eth accounts
+		DevicePairedAccounts(T::AccountId, H160),
 	}
 
 	#[pallet::error]
@@ -382,6 +415,8 @@ pub mod pallet {
 		GasPriceTooLow,
 		/// Nonce is invalid
 		InvalidNonce,
+		/// AccountId has mapped
+		AccountIdHasMapped,
 		/// Eth address has mapped
 		EthAddressHasMapped,
 		/// Bad signature
@@ -411,6 +446,7 @@ pub mod pallet {
 		fn build(&self) {
 			for (eth_addr, account_id) in &self.account_pairs {
 				<Accounts<T>>::insert(eth_addr, account_id);
+				<EthAddresses<T>>::insert(account_id, eth_addr);
 			}
 			for (address, account) in &self.accounts {
 				let account_id = T::AddressMapping::into_account_id(*address);
@@ -448,6 +484,12 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn accounts)]
 	pub type Accounts<T: Config> = StorageMap<_, Blake2_128Concat, H160, T::AccountId, OptionQuery>;
+
+	/// AccountId => Eth Address
+	#[pallet::storage]
+	#[pallet::getter(fn eth_addresses)]
+	pub type EthAddresses<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, H160, ValueQuery>;
 }
 
 /// Type alias for currency balance.
