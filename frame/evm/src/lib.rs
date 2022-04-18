@@ -161,11 +161,6 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
-			// ensure account_id and eth_address have NOT been mapped
-			ensure!(
-				!EthAddresses::<T>::contains_key(&who),
-				Error::<T>::AccountIdHasMapped
-			);
 			ensure!(
 				!Accounts::<T>::contains_key(eth_address),
 				Error::<T>::EthAddressHasMapped
@@ -190,7 +185,6 @@ pub mod pallet {
 			}
 
 			Accounts::<T>::insert(eth_address, &who);
-			EthAddresses::<T>::insert(&who, address);
 
 			Self::deposit_event(Event::PairedAccounts(who, eth_address));
 			Ok(().into())
@@ -419,7 +413,6 @@ pub mod pallet {
 		fn build(&self) {
 			for (eth_addr, account_id) in &self.account_pairs {
 				<Accounts<T>>::insert(eth_addr, account_id);
-				<EthAddresses<T>>::insert(account_id, eth_addr);
 			}
 			for (address, account) in &self.accounts {
 				let account_id = T::AddressMapping::into_account_id(*address);
@@ -457,12 +450,6 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn accounts)]
 	pub type Accounts<T: Config> = StorageMap<_, Blake2_128Concat, H160, T::AccountId, OptionQuery>;
-
-	/// AccountId => Eth Address
-	#[pallet::storage]
-	#[pallet::getter(fn eth_addresses)]
-	pub type EthAddresses<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, H160, ValueQuery>;
 }
 
 /// Type alias for currency balance.
