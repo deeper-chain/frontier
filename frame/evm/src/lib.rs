@@ -153,7 +153,7 @@ pub mod pallet {
 		/// - `eth_address`: The Eth address to bind to the caller's Substrate account
 		/// - `eth_signature`: A signature to prove the ownership Eth address
 		// todo: 1.weight, 2.cancel account pair
-		#[pallet::weight(0)]
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(4,2))]
 		pub fn pair_accounts(
 			origin: OriginFor<T>,
 			eth_address: H160,
