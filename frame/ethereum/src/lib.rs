@@ -51,12 +51,13 @@ pub use ethereum::{
 	AccessListItem, BlockV2 as Block, LegacyTransactionMessage, Log, ReceiptV3 as Receipt,
 	TransactionAction, TransactionV2 as Transaction,
 };
-pub use fp_rpc::TransactionStatus;
+pub use fp_rpc::{TransactionStatusV1, TransactionStatusV2 as TransactionStatus};
 
 #[cfg(all(feature = "std", test))]
 mod mock;
 #[cfg(all(feature = "std", test))]
 mod tests;
+
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, scale_info::TypeInfo)]
 pub enum RawOrigin {
@@ -233,22 +234,11 @@ pub mod pallet {
 		}
 
 		fn on_runtime_upgrade() -> Weight {
-			let mut weight = <T as frame_system::Config>::DbWeight::get().reads_writes(1, 1);
-			if frame_support::storage::unhashed::get::<EthereumStorageSchema>(
-				&PALLET_ETHEREUM_SCHEMA,
-			) < Some(EthereumStorageSchema::V3)
-			{
-				<Pallet<T>>::store_block(false, U256::zero());
-				HeightOffset::<T>::put(UniqueSaturatedInto::<u64>::unique_saturated_into(
-					frame_system::Pallet::<T>::block_number(),
-				));
-				weight += <T as frame_system::Config>::DbWeight::get().reads_writes(0, 2)
-			}
 			frame_support::storage::unhashed::put::<EthereumStorageSchema>(
 				&PALLET_ETHEREUM_SCHEMA,
-				&EthereumStorageSchema::V3,
+				&EthereumStorageSchema::V4,
 			);
-			weight
+			T::DbWeight::get().write
 		}
 	}
 
@@ -326,7 +316,7 @@ pub mod pallet {
 			<Pallet<T>>::store_block(false, U256::zero());
 			frame_support::storage::unhashed::put::<EthereumStorageSchema>(
 				&PALLET_ETHEREUM_SCHEMA,
-				&EthereumStorageSchema::V3,
+				&EthereumStorageSchema::V4,
 			);
 		}
 	}
@@ -610,13 +600,14 @@ impl<T: Config> Pallet<T> {
 
 		let (reason, status, used_gas, dest) = match info {
 			CallOrCreateInfo::Call(info) => (
-				info.exit_reason,
+				info.exit_reason.clone(),
 				TransactionStatus {
 					transaction_hash,
 					transaction_index,
 					from: source,
 					to,
 					contract_address: None,
+					reason: Some(info.exit_reason),
 					logs: info.logs.clone(),
 					logs_bloom: {
 						let mut bloom: Bloom = Bloom::default();
@@ -628,13 +619,14 @@ impl<T: Config> Pallet<T> {
 				to,
 			),
 			CallOrCreateInfo::Create(info) => (
-				info.exit_reason,
+				info.exit_reason.clone(),
 				TransactionStatus {
 					transaction_hash,
 					transaction_index,
 					from: source,
 					to,
 					contract_address: Some(info.value),
+					reason: Some(info.exit_reason),
 					logs: info.logs.clone(),
 					logs_bloom: {
 						let mut bloom: Bloom = Bloom::default();
@@ -876,11 +868,12 @@ pub enum EthereumStorageSchema {
 	V1,
 	V2,
 	V3,
+	V4,
 }
 
 impl Default for EthereumStorageSchema {
 	fn default() -> Self {
-		Self::Undefined
+		Self::V4
 	}
 }
 

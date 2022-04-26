@@ -22,6 +22,7 @@ pub use crate::types::{Get, Summary, TransactionContent, TransactionMap, TxPoolR
 
 pub use rpc_impl_TxPoolApi::gen_server::TxPoolApi as TxPoolApiServer;
 
+/// TxPool rpc interface.
 #[rpc(server)]
 pub trait TxPoolApi {
 	#[rpc(name = "txpool_content")]

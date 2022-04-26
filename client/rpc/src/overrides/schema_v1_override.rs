@@ -16,7 +16,7 @@
 
 use codec::Decode;
 use ethereum_types::{H160, H256, U256};
-use fp_rpc::TransactionStatus;
+use fp_rpc::{TransactionStatusV1, TransactionStatusV2 as TransactionStatus};
 use sc_client_api::backend::{AuxStore, Backend, StateBackend, StorageProvider};
 use sp_api::BlockId;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
@@ -128,13 +128,30 @@ where
 		&self,
 		block: &BlockId<Block>,
 	) -> Option<Vec<TransactionStatus>> {
-		self.query_storage::<Vec<TransactionStatus>>(
+		self.query_storage::<Vec<TransactionStatusV1>>(
 			block,
 			&StorageKey(storage_prefix_build(
 				b"Ethereum",
 				b"CurrentTransactionStatuses",
 			)),
 		)
+		.map(|statuses| {
+			statuses
+				.into_iter()
+				.map(|status| {
+					TransactionStatus {
+						transaction_hash: status.transaction_hash,
+						transaction_index: status.transaction_index,
+						from: status.from,
+						to: status.to,
+						contract_address: status.contract_address,
+						reason: None,
+						logs: status.logs,
+						logs_bloom: status.logs_bloom,
+					}
+				})
+				.collect()
+		})
 	}
 
 	/// Prior to eip-1559 there is no base fee.
