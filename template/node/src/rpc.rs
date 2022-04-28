@@ -7,9 +7,9 @@ use fc_rpc::{
 	SchemaV2Override, SchemaV3Override, StorageOverride,
 };
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
+use fp_storage::EthereumStorageSchema;
 use frontier_template_runtime::{opaque::Block, AccountId, Balance, Hash, Index};
 use jsonrpc_pubsub::manager::SubscriptionManager;
-use pallet_ethereum::EthereumStorageSchema;
 use sc_client_api::{
 	backend::{AuxStore, Backend, StateBackend, StorageProvider},
 	client::BlockchainEvents,
@@ -76,7 +76,9 @@ where
 	C: ProvideRuntimeApi<Block> + StorageProvider<Block, BE> + AuxStore,
 	C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError>,
 	C: Send + Sync + 'static,
-	C::Api: fp_rpc::EthereumRuntimeRPCApi<Block>,
+	C::Api: sp_api::ApiExt<Block>
+		+ fp_rpc::EthereumRuntimeRPCApi<Block>
+		+ fp_rpc::ConvertTransactionRuntimeApi<Block>,
 	BE: Backend<Block> + 'static,
 	BE::State: StateBackend<BlakeTwo256>,
 {
@@ -118,6 +120,7 @@ where
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 	C::Api: BlockBuilder<Block>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
+	C::Api: fp_rpc::ConvertTransactionRuntimeApi<Block>,
 	C::Api: fp_rpc::EthereumRuntimeRPCApi<Block>,
 	C::Api: fp_rpc::TxPoolRuntimeRPCApi<Block>,
 	P: TransactionPool<Block = Block> + 'static,
@@ -168,7 +171,7 @@ where
 		client.clone(),
 		pool.clone(),
 		graph.clone(),
-		frontier_template_runtime::TransactionConverter,
+		Some(frontier_template_runtime::TransactionConverter),
 		network.clone(),
 		signers,
 		overrides.clone(),

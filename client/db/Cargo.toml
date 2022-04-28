@@ -11,7 +11,6 @@ repository = "https://github.com/paritytech/frontier/"
 sp-core = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
 sp-database = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
 sp-runtime = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
-pallet-ethereum = { version = "4.0.0-dev", path = "../../frame/ethereum" }
 fp-storage = { version = "2.0.0-dev", path = "../../primitives/storage"}
 kvdb = "0.10.0"
 kvdb-rocksdb = "0.14.0"
