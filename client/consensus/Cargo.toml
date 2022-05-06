@@ -24,6 +24,6 @@ sc-consensus = { branch = "polkadot-v0.9.17", git = "https://github.com/parityte
 log = "0.4.8"
 futures = { version = "0.3.17", features = ["compat"] }
 sp-timestamp = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
-derive_more = "0.99.2"
+thiserror = "1.0"
 prometheus-endpoint = { branch = "polkadot-v0.9.17", package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate" }
 async-trait = "0.1"

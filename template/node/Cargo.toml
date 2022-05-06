@@ -59,6 +59,7 @@ frame-benchmarking-cli = { branch = "polkadot-v0.9.17", git = "https://github.co
 
 fc-consensus = { path = "../../client/consensus" }
 fp-consensus = { path = "../../primitives/consensus" }
+fp-storage = { path = "../../primitives/storage" }
 frontier-template-runtime = { path = "../runtime", default-features = false, features = ["std"] }
 fc-rpc = { path = "../../client/rpc" }
 fp-rpc = { path = "../../primitives/rpc" }
@@ -78,6 +79,7 @@ substrate-build-script-utils = { branch = "polkadot-v0.9.17", git = "https://git
 default = ["aura"]
 aura = ["frontier-template-runtime/aura"]
 manual-seal = ["frontier-template-runtime/manual-seal"]
+rpc_binary_search_estimate = ["fc-rpc/rpc_binary_search_estimate"]
 runtime-benchmarks = [
 	"frontier-template-runtime/runtime-benchmarks",
 ]
