@@ -25,17 +25,6 @@ use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_runtime::traits::BlakeTwo256;
 
-/// Light client extra dependencies.
-#[allow(dead_code)]
-pub struct LightDeps<C, F, P> {
-	/// The client instance to use.
-	pub client: Arc<C>,
-	/// Transaction pool instance.
-	pub pool: Arc<P>,
-	/// Fetcher instance.
-	pub fetcher: Arc<F>,
-}
-
 /// Full client dependencies.
 pub struct FullDeps<C, P, A: ChainApi> {
 	/// The client instance to use.
