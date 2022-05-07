@@ -221,6 +221,24 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		pub fn reward_mapping(
+			origin: OriginFor<T>,
+			eth_address: H160,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			ensure!(
+				!RewardsAccounts::<T>::contains_key(eth_address),
+				Error::<T>::AlreadyMapped
+			);
+
+			RewardsAccounts::<T>::insert(eth_address, &who);
+
+			Self::deposit_event(Event::RewardsAccounts(who, eth_address));
+			Ok(().into())
+		}
+
 		/// Issue an EVM call operation. This is similar to a message call transaction in Ethereum.
 		#[pallet::weight(T::GasWeightMapping::gas_to_weight(*gas_limit))]
 		pub fn call(
@@ -399,6 +417,8 @@ pub mod pallet {
 		PairedAccounts(T::AccountId, H160),
 		/// Mapping between Substrate accounts and Multi Eth accounts
 		DevicePairedAccounts(T::AccountId, H160),
+		/// Bind worker eth_address to reward address
+		RewardsAccounts(T::AccountId, H160),
 	}
 
 	#[pallet::error]
@@ -423,6 +443,8 @@ pub mod pallet {
 		BadSignature,
 		/// Invalid signature
 		InvalidSignature,
+		/// Reward address has mapped
+		AlreadyMapped,
 	}
 
 	#[pallet::genesis_config]
@@ -484,6 +506,11 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn accounts)]
 	pub type Accounts<T: Config> = StorageMap<_, Blake2_128Concat, H160, T::AccountId, OptionQuery>;
+
+	/// Deeper Accounts Rewarded by NPoW
+	#[pallet::storage]
+	#[pallet::getter(fn rewards_accounts)]
+	pub type RewardsAccounts<T: Config> = StorageMap<_, Blake2_128Concat, H160, T::AccountId, OptionQuery>;
 
 	/// AccountId => Eth Address
 	#[pallet::storage]
