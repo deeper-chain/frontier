@@ -1616,6 +1616,8 @@ where
 
 				// Execute the binary search and hone in on an executable gas limit.
 				let mut previous_highest = highest;
+				let mut request = request;
+				request.value = None;
 				while (highest - lowest) > U256::one() {
 					let ExecutableResult {
 						data,
