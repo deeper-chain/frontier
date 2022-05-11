@@ -1,16 +1,11 @@
+/// Available Sealing methods.
 #[cfg(feature = "manual-seal")]
-use clap::Parser;
-
-#[cfg(feature = "manual-seal")]
-arg_enum! {
-	/// Available Sealing methods.
-	#[derive(Debug, Copy, Clone, clap::ArgEnum)]
-	pub enum Sealing {
-		// Seal using rpc method.
-		Manual,
-		// Seal when transaction is executed.
-		Instant,
-	}
+#[derive(Debug, Copy, Clone, clap::ArgEnum)]
+pub enum Sealing {
+	// Seal using rpc method.
+	Manual,
+	// Seal when transaction is executed.
+	Instant,
 }
 
 #[cfg(feature = "manual-seal")]
@@ -27,8 +22,8 @@ pub struct RunCmd {
 	#[clap(flatten)]
 	pub base: sc_cli::RunCmd,
 
-	#[cfg(feature = "manual-seal")]
 	/// Choose sealing method.
+	#[cfg(feature = "manual-seal")]
 	#[clap(long, arg_enum, ignore_case = true)]
 	pub sealing: Sealing,
 
@@ -62,6 +57,7 @@ pub enum Subcommand {
 	/// Key management cli utilities
 	#[clap(subcommand)]
 	Key(sc_cli::KeySubcommand),
+
 	/// Build a chain specification.
 	BuildSpec(sc_cli::BuildSpecCmd),
 

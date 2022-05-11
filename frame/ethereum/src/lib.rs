@@ -23,14 +23,20 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode};
+#[cfg(all(feature = "std", test))]
+mod mock;
+#[cfg(all(feature = "std", test))]
+mod tests;
+
 use ethereum_types::{Bloom, BloomInput, H160, H256, H64, U256};
 use evm::ExitReason;
 use fp_consensus::{PostLog, PreLog, FRONTIER_ENGINE_ID};
 use fp_evm::CallOrCreateInfo;
 use fp_storage::{EthereumStorageSchema, PALLET_ETHEREUM_SCHEMA};
 use frame_support::{
+	codec::{Decode, Encode},
 	dispatch::DispatchResultWithPostInfo,
+	scale_info::TypeInfo,
 	traits::{EnsureOrigin, Get},
 	weights::{Pays, PostDispatchInfo, Weight},
 };
@@ -53,12 +59,7 @@ pub use ethereum::{
 };
 pub use fp_rpc::TransactionStatus;
 
-#[cfg(all(feature = "std", test))]
-mod mock;
-#[cfg(all(feature = "std", test))]
-mod tests;
-
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, scale_info::TypeInfo)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
 pub enum RawOrigin {
 	EthereumTransaction(H160),
 }
@@ -157,7 +158,7 @@ where
 	}
 }
 
-pub use pallet::*;
+pub use self::pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -869,10 +870,11 @@ pub enum ReturnValue {
 	Hash(H160),
 }
 
-pub struct IntermediateStateRoot;
-impl Get<H256> for IntermediateStateRoot {
+pub struct IntermediateStateRoot<T>(PhantomData<T>);
+impl<T: Config> Get<H256> for IntermediateStateRoot<T> {
 	fn get() -> H256 {
-		H256::decode(&mut &sp_io::storage::root(sp_runtime::StateVersion::V1)[..])
+		let version = T::Version::get().state_version();
+		H256::decode(&mut &sp_io::storage::root(version)[..])
 			.expect("Node is configured to use the same hash; qed")
 	}
 }

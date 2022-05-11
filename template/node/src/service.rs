@@ -1,9 +1,5 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
-use crate::cli::Cli;
-#[cfg(feature = "manual-seal")]
-use crate::cli::Sealing;
-use async_trait::async_trait;
 use fc_consensus::FrontierBlockImport;
 use fc_mapping_sync::{MappingSyncWorker, SyncStrategy};
 use fc_rpc::EthTask;
@@ -32,11 +28,20 @@ use std::{
 	time::Duration,
 };
 
+use crate::cli::Cli;
+#[cfg(feature = "manual-seal")]
+use crate::cli::Sealing;
+
 // Our native executor instance.
 pub struct ExecutorDispatch;
 
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
+	/// Only enable the benchmarking host functions when we actually want to benchmark.
+	#[cfg(feature = "runtime-benchmarks")]
 	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+	/// Otherwise we only use the default Substrate host functions.
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type ExtendHostFunctions = ();
 
 	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
 		frontier_template_runtime::api::dispatch(method, data)
@@ -76,7 +81,7 @@ pub const INHERENT_IDENTIFIER: InherentIdentifier = *b"timstap0";
 
 thread_local!(static TIMESTAMP: RefCell<u64> = RefCell::new(0));
 
-#[async_trait]
+#[async_trait::async_trait]
 impl sp_inherents::InherentDataProvider for MockTimestampInherentDataProvider {
 	fn provide_inherent_data(
 		&self,
@@ -363,7 +368,7 @@ pub fn new_full(mut config: Configuration, cli: &Cli) -> Result<TaskManager, Ser
 			spawn_handle: task_manager.spawn_handle(),
 			import_queue,
 			block_announce_validator_builder: None,
-			warp_sync: warp_sync,
+			warp_sync,
 		})?;
 
 	// Channel for the rpc handler to communicate with the authorship task.
@@ -528,9 +533,11 @@ pub fn new_full(mut config: Configuration, cli: &Cli) -> Result<TaskManager, Ser
 							},
 						});
 					// we spawn the future on a background thread managed by service.
-					task_manager
-						.spawn_essential_handle()
-						.spawn_blocking("manual-seal", authorship_future);
+					task_manager.spawn_essential_handle().spawn_blocking(
+						"manual-seal",
+						None,
+						authorship_future,
+					);
 				}
 				Sealing::Instant => {
 					let authorship_future =
@@ -552,9 +559,11 @@ pub fn new_full(mut config: Configuration, cli: &Cli) -> Result<TaskManager, Ser
 							},
 						});
 					// we spawn the future on a background thread managed by service.
-					task_manager
-						.spawn_essential_handle()
-						.spawn_blocking("instant-seal", authorship_future);
+					task_manager.spawn_essential_handle().spawn_blocking(
+						"instant-seal",
+						None,
+						authorship_future,
+					);
 				}
 			};
 		}
@@ -616,9 +625,11 @@ pub fn new_full(mut config: Configuration, cli: &Cli) -> Result<TaskManager, Ser
 
 			// the AURA authoring task is considered essential, i.e. if it
 			// fails we take down the service with it.
-			task_manager
-				.spawn_essential_handle()
-				.spawn_blocking("aura", None, aura);
+			task_manager.spawn_essential_handle().spawn_blocking(
+				"aura",
+				Some("block-authoring"),
+				aura,
+			);
 		}
 
 		// if the node isn't actively participating in consensus then it doesn't
@@ -670,11 +681,4 @@ pub fn new_full(mut config: Configuration, cli: &Cli) -> Result<TaskManager, Ser
 
 	network_starter.start_network();
 	Ok(task_manager)
-}
-
-#[cfg(feature = "manual-seal")]
-pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
-	return Err(ServiceError::Other(
-		"Manual seal does not support light client".to_string(),
-	));
 }

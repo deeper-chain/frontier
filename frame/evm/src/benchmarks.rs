@@ -18,12 +18,21 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 //! Benchmarking
-use crate::{runner::Runner, Config, Pallet};
 use frame_benchmarking::benchmarks;
 use rlp::RlpStream;
 use sha3::{Digest, Keccak256};
 use sp_core::{H160, U256};
 use sp_std::vec;
+
+use crate::{runner::Runner, Config, Pallet};
+
+#[cfg(test)]
+fn new_test_ext() -> sp_io::TestExternalities {
+	let t = frame_system::GenesisConfig::default()
+		.build_storage::<crate::mock::Test>()
+		.unwrap();
+	sp_io::TestExternalities::new(t)
+}
 
 benchmarks! {
 
@@ -87,7 +96,7 @@ benchmarks! {
 			None,
 			None,
 			Some(nonce_as_u256),
-			vec![],
+			Vec::new(),
 			T::config(),
 		);
 		assert_eq!(create_runner_results.is_ok(), true, "create() failed");
@@ -118,31 +127,10 @@ benchmarks! {
 			None,
 			None,
 			Some(nonce_as_u256),
-			vec![],
+			Vec::new(),
 			T::config(),
 		);
 		assert_eq!(call_runner_results.is_ok(), true, "call() failed");
 	}
 }
 
-#[cfg(test)]
-mod tests {
-	use super::*;
-	use crate::mock::Test;
-	use frame_support::assert_ok;
-	use sp_io::TestExternalities;
-
-	pub fn new_test_ext() -> TestExternalities {
-		let t = frame_system::GenesisConfig::default()
-			.build_storage::<Test>()
-			.unwrap();
-		TestExternalities::new(t)
-	}
-
-	#[test]
-	fn test_runner_execute() {
-		new_test_ext().execute_with(|| {
-			assert_ok!(test_benchmark_runner_execute::<Test>());
-		});
-	}
-}
