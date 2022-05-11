@@ -11,7 +11,7 @@ description = "Simple precompiles for EVM pallet."
 [dependencies]
 ripemd = { version = "0.1", default-features = false }
 
-sp-io = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-io = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
 
 fp-evm = { version = "3.0.0-dev", default-features = false, path = "../../../../primitives/evm" }
 

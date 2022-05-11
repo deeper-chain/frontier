@@ -7,21 +7,22 @@ description = "Ethereum compatibility full block processing emulation pallet for
 license = "Apache-2.0"
 
 [dependencies]
-ethereum = { version = "0.11.1", default-features = false, features = ["with-codec"] }
-ethereum-types = { version = "0.12", default-features = false }
-evm = { version = "0.33.1", features = ["with-codec"], default-features = false }
+ethereum = { version = "0.12.0", default-features = false, features = ["with-codec"] }
+ethereum-types = { version = "0.13.1", default-features = false }
+evm = { version = "0.35.0", features = ["with-codec"], default-features = false }
 rlp = { version = "0.5", default-features = false }
 serde = { version = "1.0.101", optional = true }
 sha3 = { version = "0.10", default-features = false }
 
-codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
-scale-info = { version = "1.0.0", default-features = false, features = ["derive"] }
-sp-io = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-runtime = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-std = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
-frame-support = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
-frame-system = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
-pallet-timestamp = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false }
+scale-info = { version = "2.0.0", default-features = false, features = ["derive"] }
+sp-io = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-runtime = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-std = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
+
+frame-support = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
+frame-system = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
+pallet-timestamp = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
 
 fp-consensus = { version = "2.0.0-dev", path = "../../primitives/consensus", default-features = false }
 fp-evm = { version = "3.0.0-dev", default-features = false, path = "../../primitives/evm" }
@@ -33,8 +34,8 @@ pallet-evm = { version = "6.0.0-dev", default-features = false, path = "../evm" 
 [dev-dependencies]
 libsecp256k1 = { version = "0.7", features = ["static-context", "hmac"] }
 rustc-hex = { version = "2.1.0", default-features = false }
-sp-core = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
-pallet-balances = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-core = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/substrate" }
+pallet-balances = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
 
 [features]
 default = ["std"]
@@ -49,7 +50,7 @@ std = [
 	"rlp/std",
 	"serde",
 	"sha3/std",
-	
+
 	"codec/std",
 	"scale-info/std",
 	"sp-io/std",
@@ -59,7 +60,7 @@ std = [
 	"frame-system/std",
 	"pallet-balances/std",
 	"pallet-timestamp/std",
-	
+
 	"fp-consensus/std",
 	"fp-evm/std",
 	"fp-rpc/std",
@@ -67,3 +68,4 @@ std = [
 	"fp-storage/std",
 	"pallet-evm/std",
 ]
+try-runtime = ["frame-support/try-runtime"]

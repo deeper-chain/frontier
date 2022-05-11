@@ -7,41 +7,42 @@ description = "Ethereum RPC (web3) compatibility layer for Substrate."
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 
 [dependencies]
-ethereum = { version = "0.11.1", features = ["with-codec"] }
-ethereum-types = "0.12"
-evm = "0.33.1"
+ethereum = { version = "0.12.0", features = ["with-codec"] }
+ethereum-types = "0.13.1"
+evm = "0.35.0"
 futures = { version = "0.3.1", features = ["compat"] }
 hex = "0.4"
-libsecp256k1 = "0.7"
-log = "0.4.8"
-lru = "0.6.6"
 jsonrpc-core = "18.0"
 jsonrpc-core-client = "18.0"
 jsonrpc-pubsub = "18.0"
+libsecp256k1 = "0.7"
+log = "0.4.8"
+lru = "0.6.6"
 rand = "0.8"
 rlp = "0.5"
+tokio = { version = "1.14", features = ["sync"] }
+serde = { version = "1.0", features = ["derive"] }
 sha3 = "0.10"
-tokio = { version = "1.14", features = [ "sync" ] }
-serde = { version = "1.0", features = [ "derive" ] }
 
-codec = { package = "parity-scale-codec", version = "2.0.0" }
-sp-api = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
-sp-blockchain = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
-sp-block-builder = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
-sp-io = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
-sp-runtime = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
-sp-storage = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
-sc-client-api = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
-sc-network = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
-sc-rpc = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
-sc-service = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
-sc-transaction-pool = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
-sc-transaction-pool-api = { branch = "polkadot-v0.9.17", git = "https://github.com/paritytech/substrate" }
+codec = { package = "parity-scale-codec", version = "3.0.0" }
+sc-client-api = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/substrate" }
+sc-network = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/substrate" }
+sc-rpc = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/substrate" }
+sc-service = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/substrate" }
+sc-transaction-pool = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/substrate" }
+sc-transaction-pool-api = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/substrate" }
+sp-api = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/substrate" }
+sp-block-builder = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/substrate" }
+sp-blockchain = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/substrate" }
+sp-core = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/substrate" }
+sp-io = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/substrate" }
+sp-runtime = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/substrate" }
+sp-storage = { branch = "polkadot-v0.9.18", git = "https://github.com/paritytech/substrate" }
 
-fp-rpc = { version = "3.0.0-dev", path = "../../primitives/rpc" }
-fp-storage = { version = "2.0.0-dev", path = "../../primitives/storage"}
 fc-db = { version = "2.0.0-dev", path = "../db" }
 fc-rpc-core = { version = "1.1.0-dev", path = "../rpc-core" }
+fp-rpc = { version = "3.0.0-dev", path = "../../primitives/rpc" }
+fp-storage = { version = "2.0.0-dev", path = "../../primitives/storage"}
 
 [features]
 default = ["rpc_binary_search_estimate"]
