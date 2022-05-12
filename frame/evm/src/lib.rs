@@ -204,6 +204,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			T::AddressMapping::ensure_address_origin(&source, &who)?;
 
+			let is_transactional = true;
 			let info = T::Runner::call(
 				source,
 				target,
@@ -214,6 +215,7 @@ pub mod pallet {
 				max_priority_fee_per_gas,
 				nonce,
 				access_list,
+				is_transactional,
 				T::config(),
 			)?;
 
@@ -251,6 +253,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			T::AddressMapping::ensure_address_origin(&source, &who)?;
 
+			let is_transactional = true;
 			let info = T::Runner::create(
 				source,
 				init,
@@ -260,6 +263,7 @@ pub mod pallet {
 				max_priority_fee_per_gas,
 				nonce,
 				access_list,
+				is_transactional,
 				T::config(),
 			)?;
 
@@ -305,6 +309,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			T::AddressMapping::ensure_address_origin(&source, &who)?;
 
+			let is_transactional = true;
 			let info = T::Runner::create2(
 				source,
 				init,
@@ -315,6 +320,7 @@ pub mod pallet {
 				max_priority_fee_per_gas,
 				nonce,
 				access_list,
+				is_transactional,
 				T::config(),
 			)?;
 
@@ -694,6 +700,9 @@ where
 	type LiquidityInfo = Option<NegativeImbalanceOf<C, T>>;
 
 	fn withdraw_fee(who: &H160, fee: U256) -> Result<Self::LiquidityInfo, Error<T>> {
+		if fee.is_zero() {
+			return Ok(None);
+		}
 		let account_id = T::AddressMapping::into_account_id(*who);
 		let imbalance = C::withdraw(
 			&account_id,
