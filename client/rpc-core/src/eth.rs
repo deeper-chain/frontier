@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 // This file is part of Frontier.
 //
-// Copyright (c) 2015-2020 Parity Technologies (UK) Ltd.
+// Copyright (c) 2015-2022 Parity Technologies (UK) Ltd.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@ use crate::types::{
 	BlockNumber, Bytes, CallRequest, FeeHistory, Filter, FilterChanges, Index, Log, Receipt,
 	RichBlock, SyncStatus, Transaction, TransactionRequest, Work,
 };
+
 pub use rpc_impl_EthApi::gen_server::EthApi as EthApiServer;
 pub use rpc_impl_EthFilterApi::gen_server::EthFilterApi as EthFilterApiServer;
 
@@ -179,7 +180,7 @@ pub trait EthApi {
 	#[rpc(name = "eth_submitHashrate")]
 	fn submit_hashrate(&self, _: U256, _: H256) -> Result<bool>;
 
-	/// Introduced in EIP-1159 for getting information on the appropiate priority fee to use.
+	/// Introduced in EIP-1159 for getting information on the appropriate priority fee to use.
 	#[rpc(name = "eth_feeHistory")]
 	fn fee_history(
 		&self,
@@ -187,6 +188,11 @@ pub trait EthApi {
 		newest_block: BlockNumber,
 		reward_percentiles: Option<Vec<f64>>,
 	) -> Result<FeeHistory>;
+
+	/// Introduced in EIP-1159, a Geth-specific and simplified priority fee oracle.
+	/// Leverages the already existing fee history cache.
+	#[rpc(name = "eth_maxPriorityFeePerGas")]
+	fn max_priority_fee_per_gas(&self) -> Result<U256>;
 }
 
 /// Eth filters rpc api (polling).

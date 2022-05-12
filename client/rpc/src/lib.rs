@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 // This file is part of Frontier.
 //
-// Copyright (c) 2020 Parity Technologies (UK) Ltd.
+// Copyright (c) 2020-2022 Parity Technologies (UK) Ltd.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -18,45 +18,50 @@
 
 mod eth;
 mod eth_pubsub;
+mod net;
 mod overrides;
 mod tx_pool;
+mod web3;
 
 pub use self::{
-	eth::{
-		EthApi, EthApiServer, EthBlockDataCache, EthFilterApi, EthFilterApiServer, EthTask, NetApi,
-		NetApiServer, Web3Api, Web3ApiServer,
-	},
-	eth_pubsub::{EthPubSubApi, EthPubSubApiServer, HexEncodedIdProvider},
+	eth::{EthApi, EthBlockDataCache, EthFilterApi, EthTask},
+	eth_pubsub::{EthPubSubApi, HexEncodedIdProvider},
+	net::NetApi,
 	overrides::{
 		OverrideHandle, RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override,
 		SchemaV3Override, StorageOverride,
 	},
-	tx_pool::{TxPoolApi, TxPoolApiServer},
+	tx_pool::TxPoolApi,
+	web3::Web3Api,
 };
 
 pub use ethereum::TransactionV2 as EthereumTransaction;
 use ethereum_types::{H160, H256};
 use evm::{ExitError, ExitReason};
-pub use fc_rpc_core::types::TransactionMessage;
+pub use fc_rpc_core::{
+	types::TransactionMessage, EthApiServer, EthFilterApiServer, EthPubSubApiServer, NetApiServer,
+	TxPoolApiServer, Web3ApiServer,
+};
 use jsonrpc_core::{Error, ErrorCode, Value};
-use sha3::{Digest, Keccak256};
+use sp_core::hashing::keccak_256;
 
 pub mod frontier_backend_client {
 	use super::internal_err;
 
-	use fc_rpc_core::types::BlockNumber;
-	use fp_storage::PALLET_ETHEREUM_SCHEMA;
-	use sc_client_api::backend::{Backend, StateBackend, StorageProvider};
-	use sp_api::{BlockId, HeaderT};
-	use sp_blockchain::HeaderBackend;
-	use sp_runtime::traits::{BlakeTwo256, Block as BlockT, UniqueSaturatedInto, Zero};
-	use sp_storage::StorageKey;
-
 	use codec::Decode;
+	use ethereum_types::H256;
 	use jsonrpc_core::Result as RpcResult;
 
-	use ethereum_types::H256;
-	use fp_storage::EthereumStorageSchema;
+	use sc_client_api::backend::{Backend, StateBackend, StorageProvider};
+	use sp_blockchain::HeaderBackend;
+	use sp_runtime::{
+		generic::BlockId,
+		traits::{BlakeTwo256, Block as BlockT, Header as HeaderT, UniqueSaturatedInto, Zero},
+	};
+	use sp_storage::StorageKey;
+
+	use fc_rpc_core::types::BlockNumber;
+	use fp_storage::{EthereumStorageSchema, PALLET_ETHEREUM_SCHEMA};
 
 	pub fn native_block_id<B: BlockT, C>(
 		client: &C,
@@ -64,10 +69,8 @@ pub mod frontier_backend_client {
 		number: Option<BlockNumber>,
 	) -> RpcResult<Option<BlockId<B>>>
 	where
-		B: BlockT,
-		C: HeaderBackend<B> + 'static,
 		B: BlockT<Hash = H256> + Send + Sync + 'static,
-		C: Send + Sync + 'static,
+		C: HeaderBackend<B> + Send + Sync + 'static,
 	{
 		Ok(match number.unwrap_or(BlockNumber::Latest) {
 			BlockNumber::Hash { hash, .. } => load_hash::<B>(backend, hash).unwrap_or(None),
@@ -83,7 +86,6 @@ pub mod frontier_backend_client {
 		hash: H256,
 	) -> RpcResult<Option<BlockId<B>>>
 	where
-		B: BlockT,
 		B: BlockT<Hash = H256> + Send + Sync + 'static,
 	{
 		let substrate_hash = backend
@@ -101,7 +103,6 @@ pub mod frontier_backend_client {
 		backend: &fc_db::Backend<B>,
 	) -> RpcResult<Option<Vec<(EthereumStorageSchema, H256)>>>
 	where
-		B: BlockT,
 		B: BlockT<Hash = H256> + Send + Sync + 'static,
 	{
 		let cache = backend
@@ -116,7 +117,6 @@ pub mod frontier_backend_client {
 		new_cache: Vec<(EthereumStorageSchema, H256)>,
 	) -> RpcResult<()>
 	where
-		B: BlockT,
 		B: BlockT<Hash = H256> + Send + Sync + 'static,
 	{
 		backend
@@ -131,12 +131,10 @@ pub mod frontier_backend_client {
 		at: BlockId<B>,
 	) -> EthereumStorageSchema
 	where
-		B: BlockT,
-		C: StorageProvider<B, BE>,
+		B: BlockT<Hash = H256> + Send + Sync + 'static,
+		C: StorageProvider<B, BE> + Send + Sync + 'static,
 		BE: Backend<B> + 'static,
 		BE::State: StateBackend<BlakeTwo256>,
-		B: BlockT<Hash = H256> + Send + Sync + 'static,
-		C: Send + Sync + 'static,
 	{
 		match client.storage(&at, &StorageKey(PALLET_ETHEREUM_SCHEMA.to_vec())) {
 			Ok(Some(bytes)) => Decode::decode(&mut &bytes.0[..])
@@ -148,10 +146,8 @@ pub mod frontier_backend_client {
 
 	pub fn is_canon<B: BlockT, C>(client: &C, target_hash: H256) -> bool
 	where
-		B: BlockT,
-		C: HeaderBackend<B> + 'static,
 		B: BlockT<Hash = H256> + Send + Sync + 'static,
-		C: Send + Sync + 'static,
+		C: HeaderBackend<B> + Send + Sync + 'static,
 	{
 		if let Ok(Some(number)) = client.number(target_hash) {
 			if let Ok(Some(header)) = client.header(BlockId::Number(number)) {
@@ -168,10 +164,8 @@ pub mod frontier_backend_client {
 		only_canonical: bool,
 	) -> RpcResult<Option<(H256, u32)>>
 	where
-		B: BlockT,
-		C: HeaderBackend<B> + 'static,
 		B: BlockT<Hash = H256> + Send + Sync + 'static,
-		C: Send + Sync + 'static,
+		C: HeaderBackend<B> + Send + Sync + 'static,
 	{
 		let transaction_metadata = backend
 			.mapping()
@@ -229,9 +223,11 @@ pub fn error_on_execution_failure(reason: &ExitReason, data: &[u8]) -> Result<()
 			// should contain a utf-8 encoded revert reason.
 			if data.len() > 68 {
 				let message_len = data[36..68].iter().sum::<u8>();
-				let body: &[u8] = &data[68..68 + message_len as usize];
-				if let Ok(reason) = std::str::from_utf8(body) {
-					message = format!("{} {}", message, reason.to_string());
+				if data.len() >= 68 + message_len as usize {
+					let body: &[u8] = &data[68..68 + message_len as usize];
+					if let Ok(reason) = std::str::from_utf8(body) {
+						message = format!("{} {}", message, reason.to_string());
+					}
 				}
 			}
 			Err(Error {
@@ -303,18 +299,20 @@ impl EthDevSigner {
 	}
 }
 
+fn secret_key_address(secret: &libsecp256k1::SecretKey) -> H160 {
+	let public = libsecp256k1::PublicKey::from_secret_key(secret);
+	public_key_address(&public)
+}
+
+fn public_key_address(public: &libsecp256k1::PublicKey) -> H160 {
+	let mut res = [0u8; 64];
+	res.copy_from_slice(&public.serialize()[1..65]);
+	H160::from(H256::from(keccak_256(&res)))
+}
+
 impl EthSigner for EthDevSigner {
 	fn accounts(&self) -> Vec<H160> {
-		self.keys
-			.iter()
-			.map(|secret| {
-				let public = libsecp256k1::PublicKey::from_secret_key(secret);
-				let mut res = [0u8; 64];
-				res.copy_from_slice(&public.serialize()[1..65]);
-
-				H160::from(H256::from_slice(Keccak256::digest(&res).as_slice()))
-			})
-			.collect()
+		self.keys.iter().map(secret_key_address).collect()
 	}
 
 	fn sign(
@@ -325,12 +323,7 @@ impl EthSigner for EthDevSigner {
 		let mut transaction = None;
 
 		for secret in &self.keys {
-			let key_address = {
-				let public = libsecp256k1::PublicKey::from_secret_key(secret);
-				let mut res = [0u8; 64];
-				res.copy_from_slice(&public.serialize()[1..65]);
-				H160::from(H256::from_slice(Keccak256::digest(&res).as_slice()))
-			};
+			let key_address = secret_key_address(secret);
 
 			if &key_address == address {
 				match message {
