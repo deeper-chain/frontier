@@ -25,9 +25,9 @@ mod tx_pool;
 mod web3;
 
 pub use self::{
-	eth::{EthApi, EthApiServer, EthFilterApi, EthFilterApiServer},
-	eth_pubsub::{EthPubSubApi, EthPubSubApiServer},
-	net::{NetApi, NetApiServer},
-	tx_pool::{TxPoolApi, TxPoolApiServer},
-	web3::{Web3Api, Web3ApiServer},
+	eth::{EthApi, EthFilterApi},
+	eth_pubsub::EthPubSubApi,
+	net::NetApi,
+	tx_pool::TxPoolApi,
+	web3::Web3Api,
 };

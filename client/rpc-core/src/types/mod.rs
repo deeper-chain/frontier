@@ -61,7 +61,7 @@ pub use self::{
 	bytes::Bytes,
 	call_request::CallRequest,
 	content::TransactionContent,
-	fee::{FeeHistory, FeeHistoryCache, FeeHistoryCacheItem},
+	fee::{FeeHistory, FeeHistoryCache, FeeHistoryCacheItem, FeeHistoryCacheLimit},
 	filter::{
 		Filter, FilterAddress, FilterChanges, FilterPool, FilterPoolItem, FilterType,
 		FilteredParams, Topic, VariadicValue,

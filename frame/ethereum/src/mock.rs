@@ -21,6 +21,7 @@ use ethereum::{TransactionAction, TransactionSignature};
 use frame_support::{
 	parameter_types,
 	traits::{ConstU32, FindAuthor, GenesisBuild, IsType},
+	weights::Weight,
 	ConsensusEngineId, PalletId,
 };
 use pallet_evm::{AddressMapping, FeeCalculator};
@@ -30,7 +31,7 @@ use sp_core::{H160, H256, U256};
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	AccountId32,
+	AccountId32, DispatchError,
 };
 use std::{collections::BTreeMap, str::FromStr};
 
@@ -121,8 +122,8 @@ impl pallet_timestamp::Config for Test {
 
 pub struct FixedGasPrice;
 impl FeeCalculator for FixedGasPrice {
-	fn min_gas_price() -> U256 {
-		1.into()
+	fn min_gas_price() -> (U256, Weight) {
+		(1.into(), 0u64)
 	}
 }
 
@@ -212,9 +213,14 @@ impl fp_self_contained::SelfContainedCall for Call {
 		}
 	}
 
-	fn validate_self_contained(&self, info: &Self::SignedInfo) -> Option<TransactionValidity> {
+	fn validate_self_contained(
+		&self,
+		info: &Self::SignedInfo,
+		dispatch_info: &DispatchInfoOf<Call>,
+		len: usize,
+	) -> Option<TransactionValidity> {
 		match self {
-			Call::Ethereum(call) => call.validate_self_contained(info),
+			Call::Ethereum(call) => call.validate_self_contained(info, dispatch_info, len),
 			_ => None,
 		}
 	}
