@@ -14,8 +14,8 @@
 // limitations under the License.
 
 use ethereum_types::{H160, H256, U256};
-use serde::Serialize;
 use evm::ExitReason;
+use serde::Serialize;
 
 /// Status
 #[derive(Debug, Serialize)]

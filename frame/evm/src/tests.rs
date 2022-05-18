@@ -53,7 +53,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		AccountId32::new([5u8; 32]),
 	);
 
-
 	let mut accounts = BTreeMap::new();
 	accounts.insert(
 		H160::from_str("1000000000000000000000000000000000000001").unwrap(),

@@ -19,7 +19,7 @@
 use frame_support::{
 	parameter_types,
 	traits::{ConstU32, FindAuthor},
-	ConsensusEngineId
+	ConsensusEngineId,
 };
 use sp_core::{H160, H256, U256};
 use sp_runtime::{

@@ -35,10 +35,10 @@ use sp_runtime::{
 };
 
 use fc_rpc_core::{types::*, EthFilterApi as EthFilterApiT};
-use fp_rpc::{EthereumRuntimeRPCApi, TransactionStatus};
+use fp_rpc::{EthereumRuntimeRPCApi, TransactionStatusV2 as TransactionStatus};
 use fp_storage::EthereumStorageSchema;
 
-use crate::{frontier_backend_client, internal_err, EthBlockDataCache};
+use crate::{eth::cache::EthBlockDataCache, frontier_backend_client, internal_err};
 
 pub struct EthFilterApi<B: BlockT, C, BE> {
 	client: Arc<C>,

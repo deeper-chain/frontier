@@ -1,6 +1,6 @@
 use codec::Decode;
 use ethereum_types::{H160, H256, U256};
-use fp_rpc::{TransactionStatusV2 as TransactionStatus};
+use fp_rpc::TransactionStatusV2 as TransactionStatus;
 use sc_client_api::backend::{AuxStore, Backend, StateBackend, StorageProvider};
 use sp_api::BlockId;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
