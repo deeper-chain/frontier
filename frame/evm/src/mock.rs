@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // This file is part of Frontier.
 //
-// Copyright (c) 2020 Parity Technologies (UK) Ltd.
+// Copyright (c) 2020-2022 Parity Technologies (UK) Ltd.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +16,11 @@
 // limitations under the License.
 
 //! Test mock for unit tests and benchmarking
-use crate::{FeeCalculator, PairedAddressMapping};
-use frame_support::{parameter_types, traits::FindAuthor, ConsensusEngineId};
+use frame_support::{
+	parameter_types,
+	traits::{ConstU32, FindAuthor},
+	ConsensusEngineId
+};
 use sp_core::{H160, H256, U256};
 use sp_runtime::{
 	generic,
@@ -25,6 +28,8 @@ use sp_runtime::{
 	AccountId32,
 };
 use sp_std::{boxed::Box, prelude::*, str::FromStr};
+
+use crate::{FeeCalculator, PairedAddressMapping};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -71,6 +76,7 @@ impl frame_system::Config for Test {
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
 	type OnSetCode = ();
+	type MaxConsumers = ConstU32<16>;
 }
 
 parameter_types! {
@@ -84,6 +90,8 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
 }
 
 parameter_types! {

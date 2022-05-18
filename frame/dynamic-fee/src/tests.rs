@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // This file is part of Frontier.
 //
-// Copyright (c) 2021 Parity Technologies (UK) Ltd.
+// Copyright (c) 2021-2022 Parity Technologies (UK) Ltd.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ use crate as pallet_dynamic_fee;
 
 use frame_support::{
 	assert_ok, parameter_types,
-	traits::{OnFinalize, OnInitialize},
+	traits::{ConstU32, OnFinalize, OnInitialize},
 };
 use sp_core::{H256, U256};
 use sp_io::TestExternalities;
@@ -68,6 +68,7 @@ impl frame_system::Config for Test {
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
 	type OnSetCode = ();
+	type MaxConsumers = ConstU32<16>;
 }
 
 frame_support::parameter_types! {

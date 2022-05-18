@@ -2,38 +2,45 @@
 name = "pallet-dynamic-fee"
 version = "4.0.0-dev"
 authors = ["Parity Technologies <admin@parity.io>"]
-edition = "2018"
+edition = "2021"
 description = "Dynamic fee handling for EVM."
 license = "Apache-2.0"
 
 [dependencies]
-pallet-evm = { path = "../evm", version = "6.0.0-dev", default-features = false }
-codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
-serde = { version = "1.0.101", optional = true }
-sp-std = { branch = "polkadot-v0.9.12", default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-core = { branch = "polkadot-v0.9.12", default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-runtime = { branch = "polkadot-v0.9.12", default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-inherents = { branch = "polkadot-v0.9.12", default-features = false, git = "https://github.com/paritytech/substrate" }
-frame-system = { branch = "polkadot-v0.9.12", default-features = false, git = "https://github.com/paritytech/substrate" }
-frame-support = { branch = "polkadot-v0.9.12", default-features = false, git = "https://github.com/paritytech/substrate" }
 async-trait = "0.1"
-scale-info = { version = "1.0.0", default-features = false, features = ["derive"] }
+serde = { version = "1.0.101", optional = true }
+
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false }
+scale-info = { version = "2.0.0", default-features = false, features = ["derive"] }
+sp-core = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-inherents = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-runtime = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-std = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
+
+frame-support = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
+frame-system = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
+
+fp-dynamic-fee = { version = "1.0.0", path = "../../primitives/dynamic-fee", default-features = false }
+fp-evm = { version = "3.0.0-dev", path = "../../primitives/evm", default-features = false }
 
 [dev-dependencies]
-pallet-timestamp = { branch = "polkadot-v0.9.12", default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-io = { branch = "polkadot-v0.9.12", default-features = false, git = "https://github.com/paritytech/substrate" }
+pallet-timestamp = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
+sp-io = { branch = "polkadot-v0.9.18", default-features = false, git = "https://github.com/paritytech/substrate" }
 
 [features]
 default = ["std"]
 std = [
-	"codec/std",
 	"serde",
-	"sp-std/std",
+
+	"codec/std",
+	"scale-info/std",
 	"sp-core/std",
-	"sp-runtime/std",
 	"sp-inherents/std",
+	"sp-runtime/std",
+	"sp-std/std",
 	"frame-system/std",
 	"frame-support/std",
-	"pallet-evm/std",
-	"scale-info/std",
+
+	"fp-dynamic-fee/std",
+	"fp-evm/std",
 ]

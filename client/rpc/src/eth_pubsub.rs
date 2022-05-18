@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 // This file is part of Frontier.
 //
-// Copyright (c) 2020 Parity Technologies (UK) Ltd.
+// Copyright (c) 2020-2022 Parity Technologies (UK) Ltd.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,43 +16,42 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use log::warn;
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use rustc_hex::ToHex;
-use sc_client_api::{
-	backend::{Backend, StateBackend, StorageProvider},
-	client::BlockchainEvents,
-};
-use sc_rpc::Metadata;
-use sc_transaction_pool_api::TransactionPool;
-use sp_api::{BlockId, ProvideRuntimeApi};
-use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
-use sp_runtime::traits::{BlakeTwo256, Block as BlockT, UniqueSaturatedInto};
 use std::{collections::BTreeMap, iter, marker::PhantomData, sync::Arc};
 
-use ethereum::BlockV2 as EthereumBlock;
+use ethereum::{BlockV2 as EthereumBlock, TransactionV2 as EthereumTransaction};
 use ethereum_types::{H256, U256};
-use fc_rpc_core::{
-	types::{
-		pubsub::{Kind, Params, PubSubSyncStatus, Result as PubSubResult},
-		Bytes, FilteredParams, Header, Log, Rich,
-	},
-	EthPubSubApi::{self as EthPubSubApiT},
-};
+use futures::{FutureExt as _, SinkExt as _, StreamExt as _};
+use jsonrpc_core::Result as JsonRpcResult;
 use jsonrpc_pubsub::{
 	manager::{IdProvider, SubscriptionManager},
 	typed::Subscriber,
 	SubscriptionId,
 };
-use sha3::{Digest, Keccak256};
+use log::warn;
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
-pub use fc_rpc_core::EthPubSubApiServer;
-use futures::{FutureExt as _, SinkExt as _, StreamExt as _};
-
-use fp_rpc::EthereumRuntimeRPCApi;
-use jsonrpc_core::Result as JsonRpcResult;
-
+use sc_client_api::{
+	backend::{Backend, StateBackend, StorageProvider},
+	client::BlockchainEvents,
+};
 use sc_network::{ExHashT, NetworkService};
+use sc_rpc::Metadata;
+use sc_transaction_pool_api::TransactionPool;
+use sp_api::{BlockId, ProvideRuntimeApi};
+use sp_blockchain::HeaderBackend;
+use sp_core::hashing::keccak_256;
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT, UniqueSaturatedInto};
+
+use fc_rpc_core::{
+	types::{
+		pubsub::{Kind, Params, PubSubSyncStatus, Result as PubSubResult, SyncStatusMetadata},
+		Bytes, FilteredParams, Header, Log, Rich,
+	},
+	EthPubSubApi as EthPubSubApiT,
+};
+use fp_rpc::EthereumRuntimeRPCApi;
+
+use sp_api::ApiExt;
 
 use crate::{frontier_backend_client, overrides::OverrideHandle};
 
@@ -73,9 +72,10 @@ impl IdProvider for HexEncodedIdProvider {
 		let mut rng = thread_rng();
 		let id: String = iter::repeat(())
 			.map(|()| rng.sample(Alphanumeric))
+			.map(char::from)
 			.take(self.len)
 			.collect();
-		let out: String = id.as_bytes().to_hex();
+		let out = hex::encode(id);
 		format!("0x{}", out)
 	}
 }
@@ -86,15 +86,13 @@ pub struct EthPubSubApi<B: BlockT, P, C, BE, H: ExHashT> {
 	network: Arc<NetworkService<B, H>>,
 	subscriptions: SubscriptionManager<HexEncodedIdProvider>,
 	overrides: Arc<OverrideHandle<B>>,
-	_marker: PhantomData<(B, BE)>,
+	starting_block: u64,
+	_marker: PhantomData<BE>,
 }
 
 impl<B: BlockT, P, C, BE, H: ExHashT> EthPubSubApi<B, P, C, BE, H>
 where
-	B: BlockT<Hash = H256> + Send + Sync + 'static,
-	C: ProvideRuntimeApi<B>,
-	C::Api: EthereumRuntimeRPCApi<B>,
-	C: Send + Sync + 'static,
+	C: HeaderBackend<B> + Send + Sync + 'static,
 {
 	pub fn new(
 		pool: Arc<P>,
@@ -103,12 +101,16 @@ where
 		subscriptions: SubscriptionManager<HexEncodedIdProvider>,
 		overrides: Arc<OverrideHandle<B>>,
 	) -> Self {
+		// Capture the best block as seen on initialization. Used for syncing subscriptions.
+		let starting_block =
+			UniqueSaturatedInto::<u64>::unique_saturated_into(client.info().best_number);
 		Self {
 			pool: pool.clone(),
 			client: client.clone(),
 			network,
 			subscriptions,
 			overrides,
+			starting_block,
 			_marker: PhantomData,
 		}
 	}
@@ -122,9 +124,7 @@ impl SubscriptionResult {
 	pub fn new_heads(&self, block: EthereumBlock) -> PubSubResult {
 		PubSubResult::Header(Box::new(Rich {
 			inner: Header {
-				hash: Some(H256::from_slice(
-					Keccak256::digest(&rlp::encode(&block.header)).as_slice(),
-				)),
+				hash: Some(H256::from(keccak_256(&rlp::encode(&block.header)))),
 				parent_hash: block.header.parent_hash,
 				uncles_hash: block.header.ommers_hash,
 				author: block.header.beneficiary,
@@ -154,9 +154,7 @@ impl SubscriptionResult {
 		receipts: Vec<ethereum::ReceiptV3>,
 		params: &FilteredParams,
 	) -> Vec<Log> {
-		let block_hash = Some(H256::from_slice(
-			Keccak256::digest(&rlp::encode(&block.header)).as_slice(),
-		));
+		let block_hash = Some(H256::from(keccak_256(&rlp::encode(&block.header))));
 		let mut logs: Vec<Log> = vec![];
 		let mut log_index: u32 = 0;
 		for (receipt_index, receipt) in receipts.into_iter().enumerate() {
@@ -177,9 +175,9 @@ impl SubscriptionResult {
 						address: log.address,
 						topics: log.topics,
 						data: Bytes(log.data),
-						block_hash: block_hash,
+						block_hash,
 						block_number: Some(block.header.number),
-						transaction_hash: transaction_hash,
+						transaction_hash,
 						transaction_index: Some(U256::from(receipt_index)),
 						log_index: Some(U256::from(log_index)),
 						transaction_log_index: Some(U256::from(transaction_log_index)),
@@ -231,8 +229,7 @@ where
 	B: BlockT<Hash = H256> + Send + Sync + 'static,
 	P: TransactionPool<Block = B> + Send + Sync + 'static,
 	C: ProvideRuntimeApi<B> + StorageProvider<B, BE> + BlockchainEvents<B>,
-	C: HeaderBackend<B> + HeaderMetadata<B, Error = BlockChainError> + 'static,
-	C: Send + Sync + 'static,
+	C: HeaderBackend<B> + Send + Sync + 'static,
 	C::Api: EthereumRuntimeRPCApi<B>,
 	BE: Backend<B> + 'static,
 	BE::State: StateBackend<BlakeTwo256>,
@@ -254,6 +251,7 @@ where
 		let pool = self.pool.clone();
 		let network = self.network.clone();
 		let overrides = self.overrides.clone();
+		let starting_block = self.starting_block;
 		match kind {
 			Kind::Logs => {
 				self.subscriptions.add(subscriber, |sink| {
@@ -348,11 +346,34 @@ where
 						.filter_map(move |txhash| {
 							if let Some(xt) = pool.ready_transaction(&txhash) {
 								let best_block: BlockId<B> = BlockId::Hash(client.info().best_hash);
-								let res = match client
-									.runtime_api()
-									.extrinsic_filter(&best_block, vec![xt.data().clone()])
+
+								let api = client.runtime_api();
+
+								let api_version = if let Ok(Some(api_version)) =
+									api.api_version::<dyn EthereumRuntimeRPCApi<B>>(&best_block)
 								{
-									Ok(txs) => {
+									api_version
+								} else {
+									return futures::future::ready(None);
+								};
+
+								let xts = vec![xt.data().clone()];
+
+								let txs: Option<Vec<EthereumTransaction>> = if api_version > 1 {
+									api.extrinsic_filter(&best_block, xts).ok()
+								} else {
+									#[allow(deprecated)]
+									if let Ok(legacy) =
+										api.extrinsic_filter_before_version_2(&best_block, xts)
+									{
+										Some(legacy.into_iter().map(|tx| tx.into()).collect())
+									} else {
+										None
+									}
+								};
+
+								let res = match txs {
+									Some(txs) => {
 										if txs.len() == 1 {
 											Some(txs[0].clone())
 										} else {
@@ -380,30 +401,92 @@ where
 			}
 			Kind::Syncing => {
 				self.subscriptions.add(subscriber, |sink| {
-					let mut previous_syncing = network.is_major_syncing();
-					let stream = client
-						.import_notification_stream()
-						.filter_map(move |notification| {
-							let syncing = network.is_major_syncing();
-							if notification.is_new_best && previous_syncing != syncing {
-								previous_syncing = syncing;
-								futures::future::ready(Some(syncing))
+					let sink = sink.sink_map_err(|e| warn!("Error sending notifications: {:?}", e));
+
+					let client = Arc::clone(&client);
+					let network = Arc::clone(&network);
+					let mut sink = sink.clone();
+					async move {
+						// Gets the node syncing status.
+						// The response is expected to be serialized either as a plain boolean
+						// if the node is not syncing, or a structure containing syncing metadata
+						// in case it is.
+						async fn status<
+							C: HeaderBackend<B>,
+							B: BlockT,
+							H: ExHashT + Send + Sync,
+						>(
+							client: Arc<C>,
+							network: Arc<NetworkService<B, H>>,
+							starting_block: u64,
+						) -> PubSubSyncStatus {
+							if network.is_major_syncing() {
+								// Get the target block to sync.
+								// This value is only exposed through substrate async Api
+								// in the `NetworkService`.
+								let highest_block = network
+									.status()
+									.await
+									.ok()
+									.and_then(|res| res.best_seen_block)
+									.map(|res| {
+										UniqueSaturatedInto::<u64>::unique_saturated_into(res)
+									});
+								// Best imported block.
+								let current_block =
+									UniqueSaturatedInto::<u64>::unique_saturated_into(
+										client.info().best_number,
+									);
+
+								PubSubSyncStatus::Detailed(SyncStatusMetadata {
+									syncing: true,
+									starting_block,
+									current_block,
+									highest_block,
+								})
 							} else {
-								futures::future::ready(None)
+								PubSubSyncStatus::Simple(false)
 							}
-						})
-						.map(|syncing| {
-							return Ok::<Result<PubSubResult, jsonrpc_core::types::error::Error>, ()>(
-								Ok(PubSubResult::SyncState(PubSubSyncStatus {
-									syncing: syncing,
-								})),
-							);
-						});
-					stream
-						.forward(
-							sink.sink_map_err(|e| warn!("Error sending notifications: {:?}", e)),
-						)
-						.map(|_| ())
+						}
+						// On connection subscriber expects a value.
+						// Because import notifications are only emitted when the node is synced or
+						// in case of reorg, the first event is emited right away.
+						let _ = sink
+							.feed(Ok(PubSubResult::SyncState(
+								status(Arc::clone(&client), Arc::clone(&network), starting_block)
+									.await,
+							)))
+							.await;
+
+						// When the node is not under a major syncing (i.e. from genesis), react
+						// normally to import notifications.
+						//
+						// Only send new notifications down the pipe when the syncing status changed.
+						client
+							.import_notification_stream()
+							.fold(
+								network.is_major_syncing(),
+								move |mut last_syncing_status, _| {
+									let client = Arc::clone(&client);
+									let network = Arc::clone(&network);
+									let mut sink = sink.clone();
+									async move {
+										let syncing_status = network.is_major_syncing();
+										if last_syncing_status != syncing_status {
+											last_syncing_status = syncing_status;
+											let _ = sink
+												.feed(Ok(PubSubResult::SyncState(
+													status(client, network, starting_block).await,
+												)))
+												.await;
+										}
+										last_syncing_status
+									}
+								},
+							)
+							.map(|_| ())
+							.await
+					}
 				});
 			}
 		}

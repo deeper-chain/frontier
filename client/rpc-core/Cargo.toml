@@ -2,20 +2,19 @@
 name = "fc-rpc-core"
 version = "1.1.0-dev"
 authors = ["Parity Technologies <admin@parity.io>"]
-edition = "2018"
+edition = "2021"
 description = "RPC traits of Ethereum."
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 
 [dependencies]
+ethereum = { version = "0.12.0", features = ["with-codec", "with-serde"] }
+ethereum-types = "0.13.1"
+evm = "0.35.0"
 jsonrpc-core = "18.0"
 jsonrpc-core-client = "18.0"
 jsonrpc-derive = "18.0"
 jsonrpc-pubsub = "18.0"
-rustc-hex = "2.1.0"
-ethereum = { version = "0.11.1", features = ["with-codec"] }
-evm = "0.33.1"
-sha3 = "0.8"
-ethereum-types = "0.12"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 rlp = "0.5"
+rustc-hex = "2.1.0"
+serde = { version = "1.0.101", features = ["derive"] }
+serde_json = "1.0"

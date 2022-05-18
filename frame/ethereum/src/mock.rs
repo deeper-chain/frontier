@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // This file is part of Frontier.
 //
-// Copyright (c) 2020 Parity Technologies (UK) Ltd.
+// Copyright (c) 2020-2022 Parity Technologies (UK) Ltd.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,16 +17,14 @@
 
 //! Test utilities
 
-use super::*;
-use crate::IntermediateStateRoot;
 use ethereum::{TransactionAction, TransactionSignature};
 use frame_support::{
 	parameter_types,
-	traits::{FindAuthor, GenesisBuild, IsType},
+	traits::{ConstU32, FindAuthor, GenesisBuild, IsType},
 	ConsensusEngineId, PalletId,
 };
 use pallet_evm::{AddressMapping, FeeCalculator};
-use rlp::*;
+use rlp::RlpStream;
 use sha3::Digest;
 use sp_core::{H160, H256, U256};
 use sp_runtime::{
@@ -35,6 +33,9 @@ use sp_runtime::{
 	AccountId32,
 };
 use std::{collections::BTreeMap, str::FromStr};
+
+use super::*;
+use crate::IntermediateStateRoot;
 
 pub type SignedExtra = (frame_system::CheckSpecVersion<Test>,);
 
@@ -85,6 +86,7 @@ impl frame_system::Config for Test {
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
 	type OnSetCode = ();
+	type MaxConsumers = ConstU32<16>;
 }
 
 parameter_types! {
@@ -102,6 +104,8 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
 }
 
 parameter_types! {
@@ -148,7 +152,7 @@ where
 	// Returns the AccountId used go generate the given Eth Address.
 	fn into_account_id(address: H160) -> T::AccountId {
 		if pallet_evm::Accounts::<T>::contains_key(&address) {
-			pallet_evm::Accounts::<T>::get(address)
+			pallet_evm::Accounts::<T>::get(address).unwrap()
 		} else {
 			let mut data: [u8; 32] = [0u8; 32];
 			data[0..4].copy_from_slice(b"evm:");
@@ -159,7 +163,7 @@ where
 
 	fn ensure_address_origin(address: &H160, origin: &T::AccountId) -> Result<(), DispatchError> {
 		if pallet_evm::Accounts::<T>::contains_key(&address)
-			&& pallet_evm::Accounts::<T>::get(address) == *origin
+			&& pallet_evm::Accounts::<T>::get(address).unwrap() == *origin
 		{
 			Ok(())
 		} else {
@@ -188,7 +192,7 @@ impl pallet_evm::Config for Test {
 
 impl crate::Config for Test {
 	type Event = Event;
-	type StateRoot = IntermediateStateRoot;
+	type StateRoot = IntermediateStateRoot<Self>;
 }
 
 impl fp_self_contained::SelfContainedCall for Call {
@@ -404,7 +408,7 @@ impl EIP2930UnsignedTransaction {
 		};
 		let chain_id = chain_id.unwrap_or(ChainId::get());
 		let msg = ethereum::EIP2930TransactionMessage {
-			chain_id: chain_id,
+			chain_id,
 			nonce: self.nonce,
 			gas_price: self.gas_price,
 			gas_limit: self.gas_limit,
@@ -454,7 +458,7 @@ impl EIP1559UnsignedTransaction {
 		};
 		let chain_id = chain_id.unwrap_or(ChainId::get());
 		let msg = ethereum::EIP1559TransactionMessage {
-			chain_id: chain_id,
+			chain_id,
 			nonce: self.nonce,
 			max_priority_fee_per_gas: self.max_priority_fee_per_gas,
 			max_fee_per_gas: self.max_fee_per_gas,

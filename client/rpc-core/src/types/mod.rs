@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 // This file is part of Frontier.
 //
-// Copyright (c) 2015-2020 Parity Technologies (UK) Ltd.
+// Copyright (c) 2015-2022 Parity Technologies (UK) Ltd.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,9 +23,11 @@ mod block;
 mod block_number;
 mod bytes;
 mod call_request;
+mod content;
 mod fee;
 mod filter;
 mod index;
+mod inspect;
 mod log;
 mod receipt;
 mod status;
@@ -33,8 +35,6 @@ mod sync;
 mod transaction;
 mod transaction_request;
 mod work;
-mod content;
-mod inspect;
 
 pub mod pubsub;
 
@@ -61,12 +61,14 @@ pub use self::{
 	block_number::BlockNumber,
 	bytes::Bytes,
 	call_request::CallRequest,
+	content::TransactionContent,
 	fee::{FeeHistory, FeeHistoryCache, FeeHistoryCacheItem},
 	filter::{
 		Filter, FilterAddress, FilterChanges, FilterPool, FilterPoolItem, FilterType,
 		FilteredParams, Topic, VariadicValue,
 	},
 	index::Index,
+	inspect::Summary,
 	log::Log,
 	receipt::Receipt,
 	status::Status,
@@ -77,6 +79,4 @@ pub use self::{
 	transaction::{LocalTransactionStatus, RichRawTransaction, Transaction},
 	transaction_request::{TransactionMessage, TransactionRequest},
 	work::Work,
-	content::TransactionContent,
-	inspect::Summary,
 };

@@ -137,17 +137,15 @@ where
 		.map(|statuses| {
 			statuses
 				.into_iter()
-				.map(|status| {
-					TransactionStatus {
-						transaction_hash: status.transaction_hash,
-						transaction_index: status.transaction_index,
-						from: status.from,
-						to: status.to,
-						contract_address: status.contract_address,
-						reason: None,
-						logs: status.logs,
-						logs_bloom: status.logs_bloom,
-					}
+				.map(|status| TransactionStatus {
+					transaction_hash: status.transaction_hash,
+					transaction_index: status.transaction_index,
+					from: status.from,
+					to: status.to,
+					contract_address: status.contract_address,
+					reason: None,
+					logs: status.logs,
+					logs_bloom: status.logs_bloom,
 				})
 				.collect()
 		})
