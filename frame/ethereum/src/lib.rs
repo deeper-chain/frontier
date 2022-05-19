@@ -249,7 +249,7 @@ pub mod pallet {
 		fn on_runtime_upgrade() -> Weight {
 			let mut weight = <T as frame_system::Config>::DbWeight::get().reads_writes(1, 1);
 			if frame_support::storage::unhashed::get::<EthereumStorageSchema>(
-				&PALLET_ETHEREUM_SCHEMA,
+				PALLET_ETHEREUM_SCHEMA,
 			) < Some(EthereumStorageSchema::V3)
 			{
 				<Pallet<T>>::store_block(false, U256::zero());
