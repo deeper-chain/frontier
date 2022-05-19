@@ -682,7 +682,6 @@ impl<T: Config> Pallet<T> {
 			},
 			T::DbWeight::get().reads(2),
 		)
-
 	}
 
 	/// Get the author using the FindAuthor trait.

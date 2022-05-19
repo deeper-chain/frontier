@@ -207,10 +207,7 @@ where
 		overrides,
 	)));
 
-	io.extend_with(TxPoolApi::to_delegate(TxPool::new(
-		client.clone(),
-		graph,
-	)));
+	io.extend_with(TxPoolApi::to_delegate(TxPool::new(client.clone(), graph)));
 
 	#[cfg(feature = "manual-seal")]
 	if let Some(command_sink) = command_sink {

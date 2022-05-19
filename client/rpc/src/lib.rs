@@ -41,8 +41,8 @@ pub use self::{
 		OverrideHandle, RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override,
 		SchemaV3Override, StorageOverride,
 	},
-	tx_pool::TxPool,
 	signer::{EthDevSigner, EthSigner},
+	tx_pool::TxPool,
 	web3::Web3,
 };
 
