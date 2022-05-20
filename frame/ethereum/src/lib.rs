@@ -58,7 +58,6 @@ mod mock;
 #[cfg(all(feature = "std", test))]
 mod tests;
 
-
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, scale_info::TypeInfo)]
 pub enum RawOrigin {
 	EthereumTransaction(H160),

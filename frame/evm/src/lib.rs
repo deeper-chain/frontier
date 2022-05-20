@@ -221,6 +221,34 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,4))]
+		pub fn reward_mapping(
+			origin: OriginFor<T>,
+			eth_address: H160,
+		) -> DispatchResultWithPostInfo {
+			let deeper_new_address = ensure_signed(origin)?;
+
+			if !RewardsAccountsEVMtoDeeper::<T>::contains_key(eth_address) {
+				RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_new_address);
+				RewardsAccountsDeepertoEVM::<T>::insert(&deeper_new_address, eth_address);
+
+				Self::deposit_event(Event::RewardsAccounts(deeper_new_address, eth_address));
+			} else {
+				let deeper_already_address = Self::rewards_accounts_evm_deeper(eth_address)
+					.ok_or(Error::<T>::InvalidSignature)?;
+				if deeper_new_address != deeper_already_address {
+					RewardsAccountsEVMtoDeeper::<T>::remove(eth_address);
+					RewardsAccountsDeepertoEVM::<T>::remove(deeper_already_address);
+
+					RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_new_address);
+					RewardsAccountsDeepertoEVM::<T>::insert(&deeper_new_address, eth_address);
+					Self::deposit_event(Event::RewardsAccounts(deeper_new_address, eth_address));
+				}
+			}
+
+			Ok(().into())
+		}
+
 		/// Issue an EVM call operation. This is similar to a message call transaction in Ethereum.
 		#[pallet::weight(T::GasWeightMapping::gas_to_weight(*gas_limit))]
 		pub fn call(
@@ -399,6 +427,8 @@ pub mod pallet {
 		PairedAccounts(T::AccountId, H160),
 		/// Mapping between Substrate accounts and Multi Eth accounts
 		DevicePairedAccounts(T::AccountId, H160),
+		/// Bind worker eth_address to reward address
+		RewardsAccounts(T::AccountId, H160),
 	}
 
 	#[pallet::error]
@@ -423,6 +453,8 @@ pub mod pallet {
 		BadSignature,
 		/// Invalid signature
 		InvalidSignature,
+		/// Reward address has mapped
+		AlreadyMapped,
 	}
 
 	#[pallet::genesis_config]
@@ -485,11 +517,23 @@ pub mod pallet {
 	#[pallet::getter(fn accounts)]
 	pub type Accounts<T: Config> = StorageMap<_, Blake2_128Concat, H160, T::AccountId, OptionQuery>;
 
+	/// Deeper Accounts Rewarded by NPoW(Evm_Address => Deeper_Address)
+	#[pallet::storage]
+	#[pallet::getter(fn rewards_accounts_evm_deeper)]
+	pub type RewardsAccountsEVMtoDeeper<T: Config> =
+		StorageMap<_, Blake2_128Concat, H160, T::AccountId, OptionQuery>;
+
 	/// AccountId => Eth Address
 	#[pallet::storage]
 	#[pallet::getter(fn eth_addresses)]
 	pub type EthAddresses<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, H160, ValueQuery>;
+
+	/// Deeper Accounts Rewarded by NPoW(Deeper_Address => Evm_Address)
+	#[pallet::storage]
+	#[pallet::getter(fn rewards_accounts_deeper_evm)]
+	pub type RewardsAccountsDeepertoEVM<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, H160, OptionQuery>;
 }
 
 /// Type alias for currency balance.
