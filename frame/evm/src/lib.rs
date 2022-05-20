@@ -242,7 +242,7 @@ pub mod pallet {
 
 					RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_new_address);
 					RewardsAccountsDeepertoEVM::<T>::insert(&deeper_new_address, eth_address);
-					Self::deposit_event(Event::RewardsAccounts(deeper_new_address, eth_address));
+					Self::deposit_event(Event::RewardsAccountsSwitch(deeper_new_address, eth_address));
 				}
 			}
 
@@ -429,6 +429,8 @@ pub mod pallet {
 		DevicePairedAccounts(T::AccountId, H160),
 		/// Bind worker eth_address to reward address
 		RewardsAccounts(T::AccountId, H160),
+		/// Switch Bind worker eth_address to reward address
+		RewardsAccountsSwitch(T::AccountId, H160),
 	}
 
 	#[pallet::error]
