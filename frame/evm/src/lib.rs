@@ -226,26 +226,29 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			eth_address: H160,
 		) -> DispatchResultWithPostInfo {
-			let deeper_new_address = ensure_signed(origin)?;
+			let deeper_address = ensure_signed(origin)?;
 
-			if !RewardsAccountsEVMtoDeeper::<T>::contains_key(eth_address) {
-				RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_new_address);
-				RewardsAccountsDeepertoEVM::<T>::insert(&deeper_new_address, eth_address);
-
-				Self::deposit_event(Event::RewardsAccounts(deeper_new_address, eth_address));
-			} else {
-				let deeper_already_address = Self::rewards_accounts_evm_deeper(eth_address)
-					.ok_or(Error::<T>::InvalidSignature)?;
-				if deeper_new_address != deeper_already_address {
+			if RewardsAccountsEVMtoDeeper::<T>::contains_key(eth_address) {
+				let evm_old_address = Self::rewards_accounts_deeper_evm(&deeper_address)
+					.ok_or(Error::<T>::NotBound)?;
+				if eth_address != evm_old_address {
 					RewardsAccountsEVMtoDeeper::<T>::remove(eth_address);
-					RewardsAccountsDeepertoEVM::<T>::remove(deeper_already_address);
+					RewardsAccountsDeepertoEVM::<T>::remove(&deeper_address);
 
-					RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_new_address);
-					RewardsAccountsDeepertoEVM::<T>::insert(&deeper_new_address, eth_address);
-					Self::deposit_event(Event::RewardsAccountsSwitch(deeper_new_address, eth_address));
+					RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_address);
+					RewardsAccountsDeepertoEVM::<T>::insert(&deeper_address, eth_address);
+					Self::deposit_event(Event::RewardsAccountsSwitch(
+						deeper_address,
+						evm_old_address,
+						eth_address,
+					));
 				}
-			}
+			} else {
+				RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_address);
+				RewardsAccountsDeepertoEVM::<T>::insert(&deeper_address, eth_address);
 
+				Self::deposit_event(Event::RewardsAccounts(deeper_address, eth_address));
+			}
 			Ok(().into())
 		}
 
@@ -430,7 +433,7 @@ pub mod pallet {
 		/// Bind worker eth_address to reward address
 		RewardsAccounts(T::AccountId, H160),
 		/// Switch Bind worker eth_address to reward address
-		RewardsAccountsSwitch(T::AccountId, H160),
+		RewardsAccountsSwitch(T::AccountId, H160, H160),
 	}
 
 	#[pallet::error]
@@ -457,6 +460,8 @@ pub mod pallet {
 		InvalidSignature,
 		/// Reward address has mapped
 		AlreadyMapped,
+		/// No binding information
+		NotBound,
 	}
 
 	#[pallet::genesis_config]

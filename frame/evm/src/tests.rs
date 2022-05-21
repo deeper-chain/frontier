@@ -100,6 +100,48 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 #[test]
+fn reward_mapping() {
+	new_test_ext().execute_with(|| {
+		let deeper_address = AccountId32::new([1u8; 32]);
+		let evm_address = H160::from_str("1000000000000000000000000000000000000001").unwrap();
+		assert_ok!(EVM::reward_mapping(
+			Origin::signed(deeper_address.clone()),
+			evm_address
+		));
+		assert_eq!(
+			EVM::rewards_accounts_deeper_evm(deeper_address),
+			Some(evm_address)
+		);
+	});
+}
+
+#[test]
+fn reward_mapping_switch_evm_address() {
+	new_test_ext().execute_with(|| {
+		let deeper_address = AccountId32::new([1u8; 32]);
+		let evm_old_address = H160::from_str("1000000000000000000000000000000000000001").unwrap();
+		let evm_new_address = H160::from_str("1000000000000000000000000000000000000002").unwrap();
+		assert_ok!(EVM::reward_mapping(
+			Origin::signed(deeper_address.clone()),
+			evm_old_address
+		));
+		assert_eq!(
+			EVM::rewards_accounts_deeper_evm(deeper_address.clone()),
+			Some(evm_old_address)
+		);
+
+		assert_ok!(EVM::reward_mapping(
+			Origin::signed(deeper_address.clone()),
+			evm_new_address
+		));
+		assert_eq!(
+			EVM::rewards_accounts_deeper_evm(deeper_address),
+			Some(evm_new_address)
+		);
+	});
+}
+
+#[test]
 fn fee_deduction() {
 	new_test_ext().execute_with(|| {
 		// Create an EVM address and the corresponding Substrate address that will be charged fees and refunded
