@@ -153,31 +153,7 @@ pub mod pallet {
 		/// - `eth_address`: The Eth address to bind to the caller's Substrate account
 		/// - `eth_signature`: A signature to prove the ownership Eth address
 		// todo: 1.weight, 2.cancel account pair
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(4,2))]
-		pub fn device_pair_multi_accounts(
-			origin: OriginFor<T>,
-			eth_address: H160,
-			eth_signature: EcdsaSignature,
-		) -> DispatchResultWithPostInfo {
-			let who = ensure_signed(origin)?;
-
-			ensure!(
-				!Accounts::<T>::contains_key(eth_address),
-				Error::<T>::EthAddressHasMapped
-			);
-
-			// recover evm address from signature
-			let address =
-				Self::eth_recover(&eth_signature, &who.using_encoded(to_ascii_hex), &[][..])
-					.ok_or(Error::<T>::BadSignature)?;
-			ensure!(eth_address == address, Error::<T>::InvalidSignature);
-
-			Accounts::<T>::insert(eth_address, &who);
-
-			Self::deposit_event(Event::DevicePairedAccounts(who, eth_address));
-			Ok(().into())
-		}
-
+		// Bind the address and get control of the bound deeper_address
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(4,2))]
 		pub fn pair_accounts(
 			origin: OriginFor<T>,
@@ -221,6 +197,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		// Mapped address, cannot get control of the mapped deper_address. Used only as a reward address
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,4))]
 		pub fn reward_mapping(
 			origin: OriginFor<T>,
@@ -228,7 +205,12 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let deeper_address = ensure_signed(origin)?;
 
-			if RewardsAccountsEVMtoDeeper::<T>::contains_key(eth_address) {
+			ensure!(
+				!RewardsAccountsEVMtoDeeper::<T>::contains_key(&eth_address),
+				Error::<T>::EthAddressAlreadyMapped
+			);
+
+			if RewardsAccountsDeepertoEVM::<T>::contains_key(&deeper_address) {
 				let evm_old_address = Self::rewards_accounts_deeper_evm(&deeper_address)
 					.ok_or(Error::<T>::NotBound)?;
 				if eth_address != evm_old_address {
@@ -458,8 +440,8 @@ pub mod pallet {
 		BadSignature,
 		/// Invalid signature
 		InvalidSignature,
-		/// Reward address has mapped
-		AlreadyMapped,
+		/// ETH addresses are already bound
+		EthAddressAlreadyMapped,
 		/// No binding information
 		NotBound,
 	}

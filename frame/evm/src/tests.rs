@@ -20,7 +20,7 @@
 use super::*;
 use crate::mock::*;
 
-use frame_support::{assert_ok, traits::GenesisBuild};
+use frame_support::{assert_ok, assert_err, traits::GenesisBuild};
 use std::{collections::BTreeMap, str::FromStr};
 
 type Balances = pallet_balances::Pallet<Test>;
@@ -137,6 +137,30 @@ fn reward_mapping_switch_evm_address() {
 		assert_eq!(
 			EVM::rewards_accounts_deeper_evm(deeper_address),
 			Some(evm_new_address)
+		);
+	});
+}
+
+#[test]
+fn reward_mapping_with_already_mapped_evm_address() {
+	new_test_ext().execute_with(|| {
+		let deeper_address = AccountId32::new([1u8; 32]);
+		let deeper_new_address = AccountId32::new([1u8; 32]);
+		let evm_address = H160::from_str("1000000000000000000000000000000000000001").unwrap();
+		assert_ok!(EVM::reward_mapping(
+			Origin::signed(deeper_address.clone()),
+			evm_address
+		));
+		assert_eq!(
+			EVM::rewards_accounts_deeper_evm(deeper_address.clone()),
+			Some(evm_address)
+		);
+
+		assert_err!(EVM::reward_mapping(
+				Origin::signed(deeper_new_address.clone()),
+				evm_address
+			),
+			Error::<Test>::EthAddressAlreadyMapped
 		);
 	});
 }
