@@ -497,16 +497,16 @@ where
 
 			if let Some(statuses) = statuses {
 				let status = statuses[index].clone();
-				return Ok(Some(Status {
+				Ok(Some(Status {
 					transaction_hash: Some(status.transaction_hash),
 					transaction_index: Some(status.transaction_index.into()),
 					from: Some(status.from),
 					to: status.to,
 					contract_address: status.contract_address,
 					reason: status.reason,
-				}));
+				}))
 			} else {
-				return Ok(None);
+				Ok(None)
 			}
 		})
 	}
