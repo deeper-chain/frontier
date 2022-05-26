@@ -29,22 +29,25 @@ use frame_support::{
 	dispatch::{Dispatchable, GetDispatchInfo, PostDispatchInfo},
 	weights::{DispatchClass, Pays},
 };
-use pallet_evm::{AddressMapping, GasWeightMapping};
 use pallet_credit::CreditInterface;
+use pallet_evm::{AddressMapping, GasWeightMapping};
 
-use sp_core::{H160,U256};
+use pallet_credit::Call as CreditCall;
+
+use sp_core::{H160, U256};
 
 use alloc::vec::Vec;
 
-pub struct CreditDispatch<T> {
-	_marker: PhantomData<T>,
+pub struct CreditDispatch<Runtime> {
+	_marker: PhantomData<Runtime>,
 }
 
-impl<T> Precompile for CreditDispatch<T>
+impl<Runtime> Precompile for CreditDispatch<Runtime>
 where
-	T: pallet_credit::Config + pallet_evm::Config,
-	T::Call: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
-	<T::Call as Dispatchable>::Origin: From<Option<T::AccountId>>,
+	Runtime: pallet_credit::Config + pallet_evm::Config,
+	Runtime::Call: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
+	<Runtime::Call as Dispatchable>::Origin: From<Option<Runtime::AccountId>>,
+	Runtime::Call: From<CreditCall<Runtime>>,
 {
 	fn execute(
 		input: &[u8],
@@ -52,16 +55,16 @@ where
 		context: &Context,
 		_is_static: bool,
 	) -> PrecompileResult {
-		let origin = T::AddressMapping::into_account_id(context.caller);
-        let score = pallet_credit::Pallet::<T>::get_credit_score(&origin);
-        let score = U256::from(score.unwrap());
+		let origin = Runtime::AddressMapping::into_account_id(context.caller);
+		let score = pallet_credit::Pallet::<Runtime>::get_credit_score(&origin);
+		let score = U256::from(score.unwrap());
 		let mut output = Vec::new();
-		score.to_little_endian(&mut output);
-        Ok(PrecompileOutput {
-            exit_status: ExitSucceed::Returned,
-            cost: 21000,
-            output,
-            logs: Default::default(),
-        })
+		score.to_big_endian(&mut output);
+		Ok(PrecompileOutput {
+			exit_status: ExitSucceed::Returned,
+			cost: 21000,
+			output,
+			logs: Default::default(),
+		})
 	}
 }

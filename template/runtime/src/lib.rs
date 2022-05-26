@@ -34,13 +34,14 @@ use sp_version::RuntimeVersion;
 use fp_rpc::{TransactionStatusV2 as TransactionStatus, TxPoolResponse};
 pub use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{FindAuthor, KeyOwnerProofSystem, Randomness},
+	traits::{ConstU128, ConstU32, FindAuthor, KeyOwnerProofSystem, Randomness},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		IdentityFee, Weight,
 	},
 	ConsensusEngineId, StorageValue,
 };
+
 pub use pallet_balances::Call as BalancesCall;
 use pallet_ethereum::{Call::transact, Transaction as EthereumTransaction};
 use pallet_evm::{Account as EVMAccount, PairedAddressMapping, Runner};
@@ -285,6 +286,47 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
+parameter_types! {
+	pub const CreditAttenuationStep: u64 = 1;
+	pub const MinCreditToDelegate: u64 = 100;
+	pub const MicropaymentToCreditFactor: u128 = 1_000_000_000_000_000;
+	pub const BlocksPerEra: BlockNumber =  6;
+	pub const SecsPerBlock: u32 = 5u32;
+	pub const DPRPerCreditBurned: u64 = 50;
+}
+
+impl pallet_credit::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type BlocksPerEra = BlocksPerEra;
+	type CreditAttenuationStep = CreditAttenuationStep;
+	type MinCreditToDelegate = MinCreditToDelegate;
+	type MicropaymentToCreditFactor = MicropaymentToCreditFactor;
+	type NodeInterface = ();
+	type WeightInfo = ();
+	type UnixTime = Timestamp;
+	type SecsPerBlock = SecsPerBlock;
+	type DPRPerCreditBurned = DPRPerCreditBurned;
+	type BurnedTo = ();
+}
+
+impl pallet_uniques::Config for Runtime {
+	type Event = Event;
+	type ClassId = u32;
+	type InstanceId = u32;
+	type Currency = Balances;
+	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+	type ClassDeposit = ConstU128<2>;
+	type InstanceDeposit = ConstU128<1>;
+	type MetadataDepositBase = ConstU128<1>;
+	type AttributeDepositBase = ConstU128<1>;
+	type DepositPerByte = ConstU128<1>;
+	type StringLimit = ConstU32<50>;
+	type KeyLimit = ConstU32<50>;
+	type ValueLimit = ConstU32<50>;
+	type WeightInfo = ();
+}
+
 pub struct FindAuthorTruncated<F>(PhantomData<F>);
 impl<F: FindAuthor<u32>> FindAuthor<H160> for FindAuthorTruncated<F> {
 	fn find_author<'a, I>(digests: I) -> Option<H160>
@@ -378,6 +420,8 @@ construct_runtime!(
 		EVM: pallet_evm::{Pallet, Config<T>, Call, Storage, Event<T>},
 		DynamicFee: pallet_dynamic_fee::{Pallet, Call, Storage, Config, Inherent},
 		BaseFee: pallet_base_fee::{Pallet, Call, Storage, Config<T>, Event},
+		Credit: pallet_credit::{Pallet, Call, Storage, Event<T>},
+		Uniques: pallet_uniques::{Pallet, Call, Storage, Event<T>},
 	}
 );
 

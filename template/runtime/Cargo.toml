@@ -41,6 +41,7 @@ pallet-timestamp = { branch = "polkadot-v0.9.17", default-features = false, git 
 pallet-transaction-payment = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
 pallet-transaction-payment-rpc-runtime-api = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
 pallet-base-fee = { default-features = false, path = "../../frame/base-fee" }
+pallet-uniques = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
 
 sp-api = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
 sp-block-builder = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate"}
@@ -54,6 +55,7 @@ sp-session = { branch = "polkadot-v0.9.17", default-features = false, git = "htt
 sp-std = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
 sp-transaction-pool = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
 sp-version = { branch = "polkadot-v0.9.17", default-features = false, git = "https://github.com/paritytech/substrate" }
+pallet-credit = { git = "https://github.com/deeper-chain/deeper-chain", default-features = false, rev = "3e678967d945b15b705b29fcef61ed4a41396883" }
 
 fp-rpc = { default-features = false, path = "../../primitives/rpc" }
 fp-self-contained = { default-features = false, path = "../../primitives/self-contained" }
