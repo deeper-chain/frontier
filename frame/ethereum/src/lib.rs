@@ -248,7 +248,7 @@ pub mod pallet {
 
 		fn on_runtime_upgrade() -> Weight {
 			frame_support::storage::unhashed::put::<EthereumStorageSchema>(
-				&PALLET_ETHEREUM_SCHEMA,
+				PALLET_ETHEREUM_SCHEMA,
 				&EthereumStorageSchema::V4,
 			);
 			T::DbWeight::get().write
