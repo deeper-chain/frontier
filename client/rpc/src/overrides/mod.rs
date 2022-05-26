@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 
 use ethereum::BlockV2 as EthereumBlock;
 use ethereum_types::{H160, H256, U256};
-use fp_rpc::{EthereumRuntimeRPCApi, TransactionStatus};
+use fp_rpc::{EthereumRuntimeRPCApi, TransactionStatusV2 as TransactionStatus};
 use fp_storage::EthereumStorageSchema;
 use sp_api::{ApiExt, BlockId, ProvideRuntimeApi};
 use sp_io::hashing::{blake2_128, twox_128};
@@ -30,10 +30,12 @@ use std::{marker::PhantomData, sync::Arc};
 mod schema_v1_override;
 mod schema_v2_override;
 mod schema_v3_override;
+mod schema_v4_override;
 
 pub use schema_v1_override::SchemaV1Override;
 pub use schema_v2_override::SchemaV2Override;
 pub use schema_v3_override::SchemaV3Override;
+pub use schema_v4_override::SchemaV4Override;
 
 pub struct OverrideHandle<Block: BlockT> {
 	pub schemas: BTreeMap<EthereumStorageSchema, Box<dyn StorageOverride<Block> + Send + Sync>>,

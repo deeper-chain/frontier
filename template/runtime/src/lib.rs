@@ -35,7 +35,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
-use fp_rpc::{TransactionStatus, TxPoolResponse};
+use fp_rpc::{TransactionStatusV2 as TransactionStatus, TxPoolResponse};
 pub use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU8, FindAuthor, KeyOwnerProofSystem, Randomness},
@@ -117,10 +117,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("node-frontier-template"),
 	impl_name: create_runtime_str!("node-frontier-template"),
 	authoring_version: 1,
-	spec_version: 1,
+	spec_version: 2,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 1,
+	transaction_version: 2,
 	state_version: 1,
 };
 

@@ -21,6 +21,7 @@
 use codec::{Decode, Encode};
 use ethereum::Log;
 use ethereum_types::Bloom;
+use evm::ExitReason;
 use scale_info::TypeInfo;
 use sp_core::{H160, H256, U256};
 use sp_runtime::{traits::Block as BlockT, Permill, RuntimeDebug};
@@ -29,12 +30,24 @@ use sp_std::vec::Vec;
 pub use ethereum::{TransactionV0 as LegacyTransaction, TransactionV2 as Transaction};
 
 #[derive(Eq, PartialEq, Clone, Default, RuntimeDebug, Encode, Decode, TypeInfo)]
-pub struct TransactionStatus {
+pub struct TransactionStatusV1 {
 	pub transaction_hash: H256,
 	pub transaction_index: u32,
 	pub from: H160,
 	pub to: Option<H160>,
 	pub contract_address: Option<H160>,
+	pub logs: Vec<Log>,
+	pub logs_bloom: Bloom,
+}
+
+#[derive(Eq, PartialEq, Clone, Default, RuntimeDebug, Encode, Decode, TypeInfo)]
+pub struct TransactionStatusV2 {
+	pub transaction_hash: H256,
+	pub transaction_index: u32,
+	pub from: H160,
+	pub to: Option<H160>,
+	pub contract_address: Option<H160>,
+	pub reason: Option<ExitReason>,
 	pub logs: Vec<Log>,
 	pub logs_bloom: Bloom,
 }
@@ -53,7 +66,7 @@ pub struct TxPoolResponse {
 
 sp_api::decl_runtime_apis! {
 	/// API necessary for Ethereum-compatibility layer.
-	#[api_version(4)]
+	#[api_version(6)]
 	pub trait EthereumRuntimeRPCApi {
 		/// Returns runtime defined pallet_evm::ChainId.
 		fn chain_id() -> u64;
@@ -146,26 +159,35 @@ sp_api::decl_runtime_apis! {
 		fn current_receipts() -> Option<Vec<ethereum::ReceiptV0>>;
 		/// Return the current receipt.
 		fn current_receipts() -> Option<Vec<ethereum::ReceiptV3>>;
+		#[changed_in(6)]
+		fn current_transaction_statuses() -> Option<Vec<TransactionStatusV1>>;
 		/// Return the current transaction status.
-		fn current_transaction_statuses() -> Option<Vec<TransactionStatus>>;
+		fn current_transaction_statuses() -> Option<Vec<TransactionStatusV2>>;
 		/// Return all the current data for a block in a single runtime call. Legacy.
 		#[changed_in(2)]
 		fn current_all() -> (
 			Option<ethereum::BlockV0>,
 			Option<Vec<ethereum::ReceiptV0>>,
-			Option<Vec<TransactionStatus>>
+			Option<Vec<TransactionStatusV1>>
 		);
 		/// Return all the current data for a block in a single runtime call.
 		#[changed_in(4)]
 		fn current_all() -> (
 			Option<ethereum::BlockV2>,
 			Option<Vec<ethereum::ReceiptV0>>,
-			Option<Vec<TransactionStatus>>
+			Option<Vec<TransactionStatusV1>>
+		);
+		/// Return all the current data for a block in a single runtime call.
+		#[changed_in(6)]
+		fn current_all() -> (
+			Option<ethereum::BlockV2>,
+			Option<Vec<ethereum::ReceiptV3>>,
+			Option<Vec<TransactionStatusV1>>
 		);
 		fn current_all() -> (
 			Option<ethereum::BlockV2>,
 			Option<Vec<ethereum::ReceiptV3>>,
-			Option<Vec<TransactionStatus>>
+			Option<Vec<TransactionStatusV2>>
 		);
 		/// Receives a `Vec<OpaqueExtrinsic>` and filters all the ethereum transactions. Legacy.
 		#[changed_in(2)]

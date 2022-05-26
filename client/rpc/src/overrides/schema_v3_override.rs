@@ -29,7 +29,7 @@ use sp_runtime::{
 };
 use sp_storage::StorageKey;
 
-use fp_rpc::TransactionStatus;
+use fp_rpc::{TransactionStatusV1, TransactionStatusV2 as TransactionStatus};
 
 use super::{blake2_128_extend, storage_prefix_build, StorageOverride};
 
@@ -109,13 +109,28 @@ where
 
 	/// Return the current transaction status.
 	fn current_transaction_statuses(&self, block: &BlockId<B>) -> Option<Vec<TransactionStatus>> {
-		self.query_storage::<Vec<TransactionStatus>>(
+		self.query_storage::<Vec<TransactionStatusV1>>(
 			block,
 			&StorageKey(storage_prefix_build(
 				b"Ethereum",
 				b"CurrentTransactionStatuses",
 			)),
 		)
+		.map(|statuses| {
+			statuses
+				.into_iter()
+				.map(|status| TransactionStatus {
+					transaction_hash: status.transaction_hash,
+					transaction_index: status.transaction_index,
+					from: status.from,
+					to: status.to,
+					contract_address: status.contract_address,
+					reason: None,
+					logs: status.logs,
+					logs_bloom: status.logs_bloom,
+				})
+				.collect()
+		})
 	}
 
 	/// Return the base fee at the given height.
