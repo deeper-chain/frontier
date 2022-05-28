@@ -20,7 +20,10 @@
 use super::*;
 use crate::mock::*;
 
-use frame_support::{assert_ok, traits::GenesisBuild};
+use frame_support::{
+	assert_ok,
+	traits::{GenesisBuild, LockIdentifier, LockableCurrency, WithdrawReasons},
+};
 use std::{collections::BTreeMap, str::FromStr};
 
 type Balances = pallet_balances::Pallet<Test>;
@@ -245,8 +248,6 @@ fn find_author() {
 	});
 }
 
-/*
-//todo
 #[test]
 fn reducible_balance() {
 	new_test_ext().execute_with(|| {
@@ -267,7 +268,6 @@ fn reducible_balance() {
 		assert_eq!(reducible_balance, (genesis_balance - to_lock - existential));
 	});
 }
-*/
 
 #[test]
 fn author_should_get_tip() {

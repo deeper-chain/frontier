@@ -65,8 +65,8 @@ mod tests;
 use frame_support::{
 	dispatch::DispatchResultWithPostInfo,
 	traits::{
-		Currency, ExistenceRequirement, FindAuthor, Get, Imbalance, IsType, OnUnbalanced,
-		SignedImbalance, WithdrawReasons,
+		tokens::fungible::Inspect, Currency, ExistenceRequirement, FindAuthor, Get, Imbalance,
+		IsType, OnUnbalanced, SignedImbalance, WithdrawReasons,
 	},
 	weights::{Pays, PostDispatchInfo, Weight},
 };
@@ -120,7 +120,7 @@ pub mod pallet {
 		/// Mapping from address to account id.
 		type AddressMapping: AddressMapping<Self::AccountId>;
 		/// Currency type for withdraw and balance storage.
-		type Currency: Currency<Self::AccountId>;
+		type Currency: Currency<Self::AccountId> + Inspect<Self::AccountId>;
 
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -673,7 +673,7 @@ impl<T: Config> Pallet<T> {
 
 		let nonce = frame_system::Pallet::<T>::account_nonce(&account_id);
 		// keepalive `true` takes into account ExistentialDeposit as part of what's considered liquid balance.
-		let balance = T::Currency::free_balance(&account_id);
+		let balance = T::Currency::reducible_balance(&account_id, true);
 
 		(
 			Account {
