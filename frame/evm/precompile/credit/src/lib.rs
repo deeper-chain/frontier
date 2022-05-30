@@ -29,14 +29,15 @@ use frame_support::{
 	dispatch::{Dispatchable, GetDispatchInfo, PostDispatchInfo},
 	weights::{DispatchClass, Pays},
 };
-use pallet_credit::CreditInterface;
 use pallet_evm::{AddressMapping, GasWeightMapping};
+use pallet_credit::CreditInterface;
 
-use pallet_credit::Call as CreditCall;
+use pallet_credit::{Call as CreditCall};
 
-use sp_core::{H160, U256};
+use sp_core::{H160,U256};
 
 use alloc::vec::Vec;
+use alloc::vec;
 
 pub struct CreditDispatch<Runtime> {
 	_marker: PhantomData<Runtime>,
@@ -44,7 +45,7 @@ pub struct CreditDispatch<Runtime> {
 
 impl<Runtime> Precompile for CreditDispatch<Runtime>
 where
-	Runtime: pallet_credit::Config + pallet_evm::Config,
+	Runtime: pallet_credit::Config + pallet_evm::Config ,
 	Runtime::Call: Dispatchable<PostInfo = PostDispatchInfo> + GetDispatchInfo + Decode,
 	<Runtime::Call as Dispatchable>::Origin: From<Option<Runtime::AccountId>>,
 	Runtime::Call: From<CreditCall<Runtime>>,
@@ -56,15 +57,18 @@ where
 		_is_static: bool,
 	) -> PrecompileResult {
 		let origin = Runtime::AddressMapping::into_account_id(context.caller);
-		let score = pallet_credit::Pallet::<Runtime>::get_credit_score(&origin);
-		let score = U256::from(score.unwrap());
-		let mut output = Vec::new();
+        let score = pallet_credit::Pallet::<Runtime>::get_current_era();
+         let score = U256::from(score);
+		 let mut output = vec!(0;32);
 		score.to_big_endian(&mut output);
-		Ok(PrecompileOutput {
-			exit_status: ExitSucceed::Returned,
-			cost: 21000,
-			output,
-			logs: Default::default(),
-		})
+		// let mut output = vec!(0;32);
+		// output[31] = 1;
+
+        Ok(PrecompileOutput {
+            exit_status: ExitSucceed::Returned,
+            cost: 21000,
+            output,
+            logs: Default::default(),
+        })
 	}
 }
