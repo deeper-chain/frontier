@@ -121,6 +121,7 @@ pub mod pallet {
 
 		/// Mapping from address to account id.
 		type AddressMapping: AddressMapping<Self::AccountId>;
+
 		/// Currency type for withdraw and balance storage.
 		type Currency: Currency<Self::AccountId> + Inspect<Self::AccountId>;
 
@@ -917,5 +918,20 @@ impl<T> OnChargeEVMTransaction<T> for ()
 
 	fn pay_priority_fee(tip: Self::LiquidityInfo) {
 		<EVMCurrencyAdapter::<<T as Config>::Currency, ()> as OnChargeEVMTransaction<T>>::pay_priority_fee(tip);
+	}
+}
+
+pub trait NpowAddressMapping<AccountId> {
+	fn evm_to_deeper(address: H160) -> Option<AccountId>;
+	fn deeper_to_evm(address: AccountId) -> Option<H160>;
+}
+
+impl<T: Config> NpowAddressMapping<T::AccountId> for Pallet<T> {
+	fn evm_to_deeper(address: H160) -> Option<T::AccountId> {
+		Self::rewards_accounts_evm_deeper(address)
+	}
+
+	fn deeper_to_evm(address: T::AccountId) -> Option<H160> {
+		Self::rewards_accounts_deeper_evm(address)
 	}
 }
