@@ -20,11 +20,14 @@ sp-std = { version = "4.0.0", git = "https://github.com/paritytech/substrate", b
 
 fp-evm = { version = "3.0.0-dev", path = "../../primitives/evm", default-features = false }
 
+evm = { git = "https://github.com/rust-blockchain/evm", branch = "master", features = ["with-codec"], default-features = false }
+
 [features]
 default = ["std"]
 std = [
 	"ethereum/std",
 	"ethereum-types/std",
+	"evm/std",
 
 	"codec/std",
 	"scale-info/std",
