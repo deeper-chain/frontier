@@ -116,12 +116,13 @@ where
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: fp_rpc::ConvertTransactionRuntimeApi<Block>,
 	C::Api: fp_rpc::EthereumRuntimeRPCApi<Block>,
+	C::Api: fp_rpc::TxPoolRuntimeRPCApi<Block>,
 	P: TransactionPool<Block = Block> + 'static,
 	A: ChainApi<Block = Block> + 'static,
 {
 	use fc_rpc::{
 		Eth, EthApi, EthDevSigner, EthFilter, EthFilterApi, EthPubSub, EthPubSubApi, EthSigner,
-		HexEncodedIdProvider, Net, NetApi, Web3, Web3Api,
+		HexEncodedIdProvider, Net, NetApi, TxPool, TxPoolApi, Web3, Web3Api,
 	};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
 	use substrate_frame_rpc_system::{FullSystem, SystemApi};
@@ -163,7 +164,7 @@ where
 	io.extend_with(EthApi::to_delegate(Eth::new(
 		client.clone(),
 		pool.clone(),
-		graph,
+		graph.clone(),
 		Some(frontier_template_runtime::TransactionConverter),
 		network.clone(),
 		signers,
@@ -197,7 +198,7 @@ where
 
 	io.extend_with(EthPubSubApi::to_delegate(EthPubSub::new(
 		pool,
-		client,
+		client.clone(),
 		network,
 		SubscriptionManager::<HexEncodedIdProvider>::with_id_provider(
 			HexEncodedIdProvider::default(),
@@ -205,6 +206,8 @@ where
 		),
 		overrides,
 	)));
+
+	io.extend_with(TxPoolApi::to_delegate(TxPool::new(client, graph)));
 
 	#[cfg(feature = "manual-seal")]
 	if let Some(command_sink) = command_sink {
