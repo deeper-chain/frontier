@@ -57,4 +57,5 @@ substrate-test-runtime-client = { version = "2.0.0", git = "https://github.com/p
 tempfile = "3.3.0"
 
 [features]
+default = ["rpc_binary_search_estimate"]
 rpc_binary_search_estimate = []
