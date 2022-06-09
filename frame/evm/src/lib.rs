@@ -119,6 +119,7 @@ pub mod pallet {
 
 		/// Mapping from address to account id.
 		type AddressMapping: AddressMapping<Self::AccountId>;
+
 		/// Currency type for withdraw and balance storage.
 		type Currency: Currency<Self::AccountId> + Inspect<Self::AccountId>;
 
@@ -912,5 +913,35 @@ impl<T> OnChargeEVMTransaction<T> for ()
 
 	fn pay_priority_fee(tip: U256) {
 		<EVMCurrencyAdapter::<<T as Config>::Currency, ()> as OnChargeEVMTransaction<T>>::pay_priority_fee(tip);
+	}
+}
+
+pub trait NpowAddressMapping<AccountId> {
+	fn evm_to_deeper(address: H160) -> Option<AccountId>;
+	fn deeper_to_evm(address: AccountId) -> Option<H160>;
+}
+
+pub struct PairedNpowAddressMapping<T>(sp_std::marker::PhantomData<T>);
+
+impl<T: Config> NpowAddressMapping<T::AccountId> for PairedNpowAddressMapping<T>
+where
+	T::AccountId: IsType<AccountId32>,
+{
+	fn evm_to_deeper(address: H160) -> Option<T::AccountId> {
+		RewardsAccountsEVMtoDeeper::<T>::get(address)
+	}
+
+	fn deeper_to_evm(address: T::AccountId) -> Option<H160> {
+		RewardsAccountsDeepertoEVM::<T>::get(address)
+	}
+}
+
+impl<AccountId> NpowAddressMapping<AccountId> for () {
+	fn evm_to_deeper(_address: H160) -> Option<AccountId> {
+		None
+	}
+
+	fn deeper_to_evm(_address: AccountId) -> Option<H160> {
+		None
 	}
 }
