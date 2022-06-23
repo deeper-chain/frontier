@@ -40,8 +40,8 @@ use pallet_transaction_payment::CurrencyAdapter;
 use fp_rpc::TransactionStatus;
 use pallet_ethereum::{Call::transact, Transaction as EthereumTransaction};
 use pallet_evm::{
-	Account as EVMAccount, EnsureAddressTruncated, FeeCalculator, GasWeightMapping,
-	HashedAddressMapping, Runner,
+	Account as EVMAccount, FeeCalculator, GasWeightMapping,
+	PairedAddressMapping, Runner,
 };
 
 // A few exports that help ease life for downstream crates.
@@ -328,9 +328,7 @@ impl pallet_evm::Config for Runtime {
 	type FeeCalculator = BaseFee;
 	type GasWeightMapping = FixedGasWeightMapping;
 	type BlockHashMapping = pallet_ethereum::EthereumBlockHashMapping<Self>;
-	type CallOrigin = EnsureAddressTruncated;
-	type WithdrawOrigin = EnsureAddressTruncated;
-	type AddressMapping = HashedAddressMapping<BlakeTwo256>;
+	type AddressMapping = PairedAddressMapping<Runtime>;
 	type Currency = Balances;
 	type Event = Event;
 	type PrecompilesType = FrontierPrecompiles<Self>;

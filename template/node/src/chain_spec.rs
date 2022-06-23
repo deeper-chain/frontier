@@ -8,6 +8,8 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 
 use frontier_template_runtime::{AccountId, GenesisConfig, Signature, WASM_BINARY};
 
+use hex_literal::hex;
+
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -176,6 +178,20 @@ fn testnet_genesis(
 		// EVM compatibility
 		evm_chain_id: EVMChainIdConfig { chain_id },
 		evm: EVMConfig {
+			account_pairs: {
+				let mut map = BTreeMap::new();
+				map.insert(
+					// H160 address of Alice dev account
+					// Derived from SS58 (42 prefix) address
+					// SS58: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+					// hex: 0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
+					// Using the full hex key, truncating to the first 20 bytes (the first 40 hex chars)
+					H160::from_str("d43593c715fdd31c61141abd04a99fd6822c8558")
+						.expect("internal H160 is valid; qed"),
+					hex!("d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d").into(),
+				);
+				map
+			},
 			accounts: {
 				let mut map = BTreeMap::new();
 				map.insert(
