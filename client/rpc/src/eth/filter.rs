@@ -35,7 +35,7 @@ use sp_runtime::{
 };
 
 use fc_rpc_core::{types::*, EthFilterApiServer};
-use fp_rpc::{EthereumRuntimeRPCApi, TransactionStatus};
+use fp_rpc::{EthereumRuntimeRPCApi, TransactionStatusV2 as TransactionStatus};
 use fp_storage::EthereumStorageSchema;
 
 use crate::{eth::cache::EthBlockDataCacheTask, frontier_backend_client, internal_err};
