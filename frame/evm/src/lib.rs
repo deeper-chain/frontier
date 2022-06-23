@@ -157,13 +157,18 @@ pub mod pallet {
 		/// - `eth_signature`: A signature to prove the ownership Eth address
 		// todo: cancel account pair
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(4,2))]
-		pub fn multi_pair_accounts(
+		pub fn pair_accounts(
 			origin: OriginFor<T>,
 			eth_address: H160,
 			eth_signature: EcdsaSignature,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
+			// ensure account_id and eth_address have NOT been mapped
+			ensure!(
+				!EthAddresses::<T>::contains_key(&who),
+				Error::<T>::AccountIdHasMapped
+			);
 			ensure!(
 				!Accounts::<T>::contains_key(eth_address),
 				Error::<T>::EthAddressHasMapped
@@ -188,8 +193,46 @@ pub mod pallet {
 			}
 
 			Accounts::<T>::insert(eth_address, &who);
+			EthAddresses::<T>::insert(&who, address);
 
 			Self::deposit_event(Event::PairedAccounts(who, eth_address));
+			Ok(().into())
+		}
+
+		// Mapped address, cannot get control of the mapped deper_address. Used only as a reward address
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,4))]
+		pub fn reward_mapping(
+			origin: OriginFor<T>,
+			eth_address: H160,
+		) -> DispatchResultWithPostInfo {
+			let deeper_address = ensure_signed(origin)?;
+
+			ensure!(
+				!RewardsAccountsEVMtoDeeper::<T>::contains_key(&eth_address),
+				Error::<T>::EthAddressAlreadyMapped
+			);
+
+			if RewardsAccountsDeepertoEVM::<T>::contains_key(&deeper_address) {
+				let evm_old_address = Self::rewards_accounts_deeper_evm(&deeper_address)
+					.ok_or(Error::<T>::NotBound)?;
+				if eth_address != evm_old_address {
+					RewardsAccountsEVMtoDeeper::<T>::remove(eth_address);
+					RewardsAccountsDeepertoEVM::<T>::remove(&deeper_address);
+
+					RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_address);
+					RewardsAccountsDeepertoEVM::<T>::insert(&deeper_address, eth_address);
+					Self::deposit_event(Event::RewardsAccountsSwitch(
+						deeper_address,
+						evm_old_address,
+						eth_address,
+					));
+				}
+			} else {
+				RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_address);
+				RewardsAccountsDeepertoEVM::<T>::insert(&deeper_address, eth_address);
+
+				Self::deposit_event(Event::RewardsAccounts(deeper_address, eth_address));
+			}
 			Ok(().into())
 		}
 
@@ -408,6 +451,12 @@ pub mod pallet {
 		BalanceWithdraw(T::AccountId, H160, U256),
 		/// Mapping between Substrate accounts and Eth accounts
 		PairedAccounts(T::AccountId, H160),
+		/// Mapping between Substrate accounts and Multi Eth accounts
+		DevicePairedAccounts(T::AccountId, H160),
+		/// Bind worker eth_address to reward address
+		RewardsAccounts(T::AccountId, H160),
+		/// Switch Bind worker eth_address to reward address
+		RewardsAccountsSwitch(T::AccountId, H160, H160),
 	}
 
 	#[pallet::error]
@@ -424,12 +473,18 @@ pub mod pallet {
 		GasPriceTooLow,
 		/// Nonce is invalid
 		InvalidNonce,
+		/// AccountId has mapped
+		AccountIdHasMapped,
 		/// Eth address has mapped
 		EthAddressHasMapped,
 		/// Bad signature
 		BadSignature,
 		/// Invalid signature
 		InvalidSignature,
+		/// ETH addresses are already bound
+		EthAddressAlreadyMapped,
+		/// No binding information
+		NotBound,
 	}
 
 	#[pallet::genesis_config]
@@ -453,6 +508,7 @@ pub mod pallet {
 		fn build(&self) {
 			for (eth_addr, account_id) in &self.account_pairs {
 				<Accounts<T>>::insert(eth_addr, account_id);
+				<EthAddresses<T>>::insert(account_id, eth_addr);
 			}
 			for (address, account) in &self.accounts {
 				let account_id = T::AddressMapping::into_account_id(*address);
@@ -490,6 +546,24 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn accounts)]
 	pub type Accounts<T: Config> = StorageMap<_, Blake2_128Concat, H160, T::AccountId, OptionQuery>;
+
+	/// Deeper Accounts Rewarded by NPoW(Evm_Address => Deeper_Address)
+	#[pallet::storage]
+	#[pallet::getter(fn rewards_accounts_evm_deeper)]
+	pub type RewardsAccountsEVMtoDeeper<T: Config> =
+		StorageMap<_, Blake2_128Concat, H160, T::AccountId, OptionQuery>;
+
+	/// AccountId => Eth Address
+	#[pallet::storage]
+	#[pallet::getter(fn eth_addresses)]
+	pub type EthAddresses<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, H160, ValueQuery>;
+
+	/// Deeper Accounts Rewarded by NPoW(Deeper_Address => Evm_Address)
+	#[pallet::storage]
+	#[pallet::getter(fn rewards_accounts_deeper_evm)]
+	pub type RewardsAccountsDeepertoEVM<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, H160, OptionQuery>;
 }
 
 /// Type alias for currency balance.
