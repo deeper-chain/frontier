@@ -39,7 +39,7 @@ pub use self::{
 	net::Net,
 	overrides::{
 		OverrideHandle, RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override,
-		SchemaV3Override, StorageOverride,
+		SchemaV3Override, SchemaV4Override, StorageOverride,
 	},
 	signer::{EthDevSigner, EthSigner},
 	tx_pool::TxPool,

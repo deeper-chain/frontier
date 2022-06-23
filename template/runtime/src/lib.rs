@@ -37,7 +37,7 @@ use pallet_grandpa::{
 };
 use pallet_transaction_payment::CurrencyAdapter;
 // Frontier
-use fp_rpc::{TransactionStatus, TxPoolResponse};
+use fp_rpc::{TransactionStatusV2 as TransactionStatus, TxPoolResponse};
 use pallet_ethereum::{Call::transact, Transaction as EthereumTransaction};
 use pallet_evm::{
 	Account as EVMAccount, FeeCalculator, GasWeightMapping,
@@ -115,10 +115,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("node-frontier-template"),
 	impl_name: create_runtime_str!("node-frontier-template"),
 	authoring_version: 1,
-	spec_version: 1,
+	spec_version: 2,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 1,
+	transaction_version: 2,
 	state_version: 1,
 };
 

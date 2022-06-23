@@ -42,7 +42,7 @@ use sp_runtime::{
 };
 // Frontier
 use fc_rpc_core::types::*;
-use fp_rpc::{EthereumRuntimeRPCApi, TransactionStatus};
+use fp_rpc::{EthereumRuntimeRPCApi, TransactionStatusV2 as TransactionStatus};
 use fp_storage::EthereumStorageSchema;
 
 use self::lru_cache::LRUCacheByteLimited;

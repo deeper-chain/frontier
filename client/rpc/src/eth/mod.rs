@@ -48,7 +48,7 @@ use sp_runtime::{
 };
 // Frontier
 use fc_rpc_core::{types::*, EthApiServer};
-use fp_rpc::{ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi, TransactionStatus};
+use fp_rpc::{ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi, TransactionStatusV2 as TransactionStatus};
 
 use crate::{internal_err, overrides::OverrideHandle, public_key, signer::EthSigner};
 
@@ -221,6 +221,10 @@ where
 
 	async fn transaction_receipt(&self, hash: H256) -> Result<Option<Receipt>> {
 		self.transaction_receipt(hash).await
+	}
+
+	fn transaction_status(&self, hash: H256) -> BoxFuture<'static, Result<Option<Status>>> {
+		self.transaction_status(hash)
 	}
 
 	// ########################################################################
