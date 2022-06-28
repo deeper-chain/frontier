@@ -31,7 +31,7 @@ use sp_runtime::{
 };
 use sp_std::{boxed::Box, prelude::*, str::FromStr};
 
-use crate::{FeeCalculator, PairedAddressMapping};
+use crate::{AddressMapping, FeeCalculator, PairedAddressMapping};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -114,13 +114,15 @@ impl FeeCalculator for FixedGasPrice {
 	}
 }
 
-pub struct FindAuthorTruncated;
-impl FindAuthor<H160> for FindAuthorTruncated {
-	fn find_author<'a, I>(_digests: I) -> Option<H160>
+pub struct FindAuthorPaired;
+impl FindAuthor<AccountId32> for FindAuthorPaired {
+	fn find_author<'a, I>(_digests: I) -> Option<AccountId32>
 	where
 		I: 'a + IntoIterator<Item = (ConsensusEngineId, &'a [u8])>,
 	{
-		Some(H160::from_str("1234500000000000000000000000000000000000").unwrap())
+		Some(<Test as crate::Config>::AddressMapping::into_account_id(
+			H160::from_str("1234500000000000000000000000000000000000").unwrap(),
+		))
 	}
 }
 parameter_types! {
@@ -141,5 +143,5 @@ impl crate::Config for Test {
 	type BlockGasLimit = BlockGasLimit;
 	type OnChargeTransaction = ();
 	type BlockHashMapping = crate::SubstrateBlockHashMapping<Self>;
-	type FindAuthor = FindAuthorTruncated;
+	type FindAuthor = FindAuthorPaired;
 }
