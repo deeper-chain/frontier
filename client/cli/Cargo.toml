@@ -21,9 +21,9 @@ ethereum-types = "0.13.1"
 # Substrate
 sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24", features = ["wasmtime"] }
 sc-service = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24", features = ["wasmtime"] }
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24"  }
-sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24"  }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24"  }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
 
 # Frontier
 fc-db = { path = "../db" }
@@ -39,7 +39,7 @@ codec = { package = "parity-scale-codec", version = "3.0.0" }
 sc-block-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
 sc-client-db = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
 sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24"  }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
 substrate-test-runtime-client = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
 # Frontier
 frontier-template-runtime = { path = "../../template/runtime" }

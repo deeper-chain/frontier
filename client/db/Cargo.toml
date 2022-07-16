@@ -20,9 +20,9 @@ parity-db = { version = "0.3.14", optional = true }
 
 # Substrate
 sc-client-db = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24"  }
-sp-database = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24"  }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24"  }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
+sp-database = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
 
 # Frontier
 fp-storage = { version = "2.0.0-dev", path = "../../primitives/storage" }
