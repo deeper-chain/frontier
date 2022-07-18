@@ -34,7 +34,6 @@ benchmarks! {
 
 		use frame_benchmarking::vec;
 		use rlp::RlpStream;
-		use sha3::{Digest, Keccak256};
 		use sp_core::{H160, U256};
 
 		// contract bytecode below is for:
@@ -77,6 +76,7 @@ benchmarks! {
 		let value = U256::default();
 		let gas_limit_create: u64 = 1_250_000 * 1_000_000_000;
 		let is_transactional = true;
+		let validate = true;
 		let create_runner_results = T::Runner::create(
 			caller,
 			contract_bytecode,
@@ -87,6 +87,7 @@ benchmarks! {
 			Some(nonce_as_u256),
 			Vec::new(),
 			is_transactional,
+			validate,
 			T::config(),
 		);
 		assert_eq!(create_runner_results.is_ok(), true, "create() failed");
@@ -95,11 +96,11 @@ benchmarks! {
 		let mut rlp = RlpStream::new_list(2);
 		rlp.append(&caller);
 		rlp.append(&0u8);
-		let contract_address = H160::from_slice(&Keccak256::digest(&rlp.out())[12..]);
+		let contract_address = H160::from_slice(&sp_io::hashing::keccak_256(&rlp.out())[12..]);
 
 		// derive encoded contract call -- in this case, just the function selector
 		let mut encoded_call = vec![0u8; 4];
-		encoded_call[0..4].copy_from_slice(&Keccak256::digest(b"infinite()")[0..4]);
+		encoded_call[0..4].copy_from_slice(&sp_io::hashing::keccak_256(b"infinite()")[0..4]);
 
 		let gas_limit_call = x as u64;
 
@@ -109,6 +110,7 @@ benchmarks! {
 		let nonce_as_u256: U256 = nonce.into();
 
 		let is_transactional = true;
+		let validate = true;
 		let call_runner_results = T::Runner::call(
 			caller,
 			contract_address,
@@ -120,6 +122,7 @@ benchmarks! {
 			Some(nonce_as_u256),
 			Vec::new(),
 			is_transactional,
+			validate,
 			T::config(),
 		);
 		assert_eq!(call_runner_results.is_ok(), true, "call() failed");

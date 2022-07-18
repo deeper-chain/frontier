@@ -54,6 +54,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::too_many_arguments)]
 
+#[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 
 #[cfg(test)]
@@ -75,7 +76,7 @@ use sp_runtime::{
 	traits::{Saturating, UniqueSaturatedInto, Zero},
 	AccountId32, DispatchError, DispatchErrorWithPostInfo,
 };
-use sp_std::vec::Vec;
+use sp_std::{cmp::min, vec::Vec};
 
 use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};
 
@@ -87,9 +88,9 @@ pub use evm::{
 #[cfg(feature = "std")]
 use fp_evm::GenesisAccount;
 pub use fp_evm::{
-	Account, CallInfo, CreateInfo, ExecutionInfo, FeeCalculator, LinearCostPrecompile, Log,
-	Precompile, PrecompileFailure, PrecompileHandle, PrecompileOutput, PrecompileResult,
-	PrecompileSet, Vicinity,
+	Account, CallInfo, CreateInfo, ExecutionInfo, FeeCalculator, InvalidEvmTransactionError,
+	LinearCostPrecompile, Log, Precompile, PrecompileFailure, PrecompileHandle, PrecompileOutput,
+	PrecompileResult, PrecompileSet, Vicinity,
 };
 
 pub use self::{
@@ -255,6 +256,7 @@ pub mod pallet {
 			T::AddressMapping::ensure_address_origin(&source, &who)?;
 
 			let is_transactional = true;
+			let validate = true;
 			let info = match T::Runner::call(
 				source,
 				target,
@@ -266,6 +268,7 @@ pub mod pallet {
 				nonce,
 				access_list,
 				is_transactional,
+				validate,
 				T::config(),
 			) {
 				Ok(info) => info,
@@ -315,6 +318,7 @@ pub mod pallet {
 			T::AddressMapping::ensure_address_origin(&source, &who)?;
 
 			let is_transactional = true;
+			let validate = true;
 			let info = match T::Runner::create(
 				source,
 				init,
@@ -325,6 +329,7 @@ pub mod pallet {
 				nonce,
 				access_list,
 				is_transactional,
+				validate,
 				T::config(),
 			) {
 				Ok(info) => info,
@@ -382,6 +387,7 @@ pub mod pallet {
 			T::AddressMapping::ensure_address_origin(&source, &who)?;
 
 			let is_transactional = true;
+			let validate = true;
 			let info = match T::Runner::create2(
 				source,
 				init,
@@ -393,6 +399,7 @@ pub mod pallet {
 				nonce,
 				access_list,
 				is_transactional,
+				validate,
 				T::config(),
 			) {
 				Ok(info) => info,
@@ -486,6 +493,28 @@ pub mod pallet {
 		EthAddressAlreadyMapped,
 		/// No binding information
 		NotBound,
+		/// Gas limit is too low.
+		GasLimitTooLow,
+		/// Gas limit is too high.
+		GasLimitTooHigh,
+		/// Undefined error.
+		Undefined,
+	}
+
+	impl<T> From<InvalidEvmTransactionError> for Error<T> {
+		fn from(validation_error: InvalidEvmTransactionError) -> Self {
+			match validation_error {
+				InvalidEvmTransactionError::GasLimitTooLow => Error::<T>::GasLimitTooLow,
+				InvalidEvmTransactionError::GasLimitTooHigh => Error::<T>::GasLimitTooHigh,
+				InvalidEvmTransactionError::GasPriceTooLow => Error::<T>::GasLimitTooLow,
+				InvalidEvmTransactionError::PriorityFeeTooHigh => Error::<T>::GasPriceTooLow,
+				InvalidEvmTransactionError::BalanceTooLow => Error::<T>::BalanceLow,
+				InvalidEvmTransactionError::TxNonceTooLow => Error::<T>::InvalidNonce,
+				InvalidEvmTransactionError::TxNonceTooHigh => Error::<T>::InvalidNonce,
+				InvalidEvmTransactionError::InvalidPaymentInput => Error::<T>::GasPriceTooLow,
+				_ => Error::<T>::Undefined,
+			}
+		}
 	}
 
 	#[pallet::genesis_config]
@@ -507,6 +536,8 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
+			const MAX_ACCOUNT_NONCE: usize = 100;
+
 			for (eth_addr, account_id) in &self.account_pairs {
 				<Accounts<T>>::insert(eth_addr, account_id);
 				<EthAddresses<T>>::insert(account_id, eth_addr);
@@ -516,14 +547,14 @@ pub mod pallet {
 
 				// ASSUME: in one single EVM transaction, the nonce will not increase more than
 				// `u128::max_value()`.
-				for _ in 0..account.nonce.low_u128() {
+				for _ in 0..min(
+					MAX_ACCOUNT_NONCE,
+					UniqueSaturatedInto::<usize>::unique_saturated_into(account.nonce),
+				) {
 					frame_system::Pallet::<T>::inc_account_nonce(&account_id);
 				}
 
-				T::Currency::deposit_creating(
-					&account_id,
-					account.balance.low_u128().unique_saturated_into(),
-				);
+				T::Currency::deposit_creating(&account_id, account.balance.unique_saturated_into());
 
 				Pallet::<T>::create_account(*address, account.code.clone());
 
@@ -723,7 +754,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		<AccountCodes<T>>::remove(address);
-		<AccountStorages<T>>::remove_prefix(address, None);
+		let _ = <AccountStorages<T>>::remove_prefix(address, None);
 	}
 
 	/// Create an account.
@@ -810,6 +841,7 @@ where
 		Opposite = C::PositiveImbalance,
 	>,
 	OU: OnUnbalanced<NegativeImbalanceOf<C, T>>,
+	U256: UniqueSaturatedInto<<C as Currency<<T as frame_system::Config>::AccountId>>::Balance>,
 {
 	// Kept type as Option to satisfy bound of Default
 	type LiquidityInfo = Option<NegativeImbalanceOf<C, T>>;
@@ -821,7 +853,7 @@ where
 		let account_id = T::AddressMapping::into_account_id(*who);
 		let imbalance = C::withdraw(
 			&account_id,
-			fee.low_u128().unique_saturated_into(),
+			fee.unique_saturated_into(),
 			WithdrawReasons::FEE,
 			ExistenceRequirement::AllowDeath,
 		)
@@ -841,7 +873,7 @@ where
 			// Calculate how much refund we should return
 			let refund_amount = paid
 				.peek()
-				.saturating_sub(corrected_fee.low_u128().unique_saturated_into());
+				.saturating_sub(corrected_fee.unique_saturated_into());
 			// refund to the account that paid the fees. If this fails, the
 			// account might have dropped below the existential balance. In
 			// that case we don't refund anything.
@@ -872,7 +904,7 @@ where
 				.same()
 				.unwrap_or_else(|_| C::NegativeImbalance::zero());
 
-			let (base_fee, tip) = adjusted_paid.split(base_fee.low_u128().unique_saturated_into());
+			let (base_fee, tip) = adjusted_paid.split(base_fee.unique_saturated_into());
 			// Handle base fee. Can be either burned, rationed, etc ...
 			OU::on_unbalanced(base_fee);
 			return Some(tip);
@@ -896,7 +928,10 @@ impl<T> OnChargeEVMTransaction<T> for ()
 	<T::Currency as Currency<<T as frame_system::Config>::AccountId>>::PositiveImbalance:
 		Imbalance<<T::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance, Opposite = <T::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance>,
 	<T::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance:
-		Imbalance<<T::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance, Opposite = <T::Currency as Currency<<T as frame_system::Config>::AccountId>>::PositiveImbalance>, {
+Imbalance<<T::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance, Opposite = <T::Currency as Currency<<T as frame_system::Config>::AccountId>>::PositiveImbalance>,
+U256: UniqueSaturatedInto<BalanceOf<T>>,
+
+{
 	// Kept type as Option to satisfy bound of Default
 	type LiquidityInfo = Option<NegativeImbalanceOf<T::Currency, T>>;
 
