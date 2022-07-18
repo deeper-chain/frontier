@@ -18,10 +18,10 @@ use crate::{internal_err, public_key};
 use ethereum_types::{H160, H256, U256};
 pub use fc_rpc_core::{
 	types::{Get, Summary, TransactionContent, TransactionMap, TxPoolResult},
-	TxPoolApi,
+	TxPoolApiServer,
 };
 use fp_rpc::{Transaction as TransactionV2, TxPoolResponse, TxPoolRuntimeRPCApi};
-use jsonrpc_core::Result as RpcResult;
+use jsonrpsee::core::RpcResult;
 // TODO @tgmichel It looks like this graph stuff moved to the test-helpers feature.
 // Is it only for tests? Should we use it here?
 use sc_transaction_pool::{ChainApi, Pool};
@@ -31,8 +31,7 @@ use sha3::{Digest, Keccak256};
 use sp_api::{ApiExt, BlockId, ProvideRuntimeApi};
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_runtime::traits::Block as BlockT;
-use std::collections::HashMap;
-use std::{marker::PhantomData, sync::Arc};
+use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 
 pub struct TxPool<B: BlockT, C, A: ChainApi> {
 	client: Arc<C>,
@@ -155,7 +154,7 @@ where
 	}
 }
 
-impl<B, C, A> TxPoolApi for TxPool<B, C, A>
+impl<B, C, A> TxPoolApiServer for TxPool<B, C, A>
 where
 	C: ProvideRuntimeApi<B>,
 	C: HeaderMetadata<B, Error = BlockChainError> + HeaderBackend<B>,
