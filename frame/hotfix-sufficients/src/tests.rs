@@ -34,8 +34,11 @@ fn test_hotfix_inc_account_sufficients_returns_error_if_max_addresses_exceeded()
 			.map(H160::from_low_u64_le)
 			.collect::<Vec<H160>>();
 
+		let evm_addr = H160::from_str("1000000000000000000000000000000000000003").unwrap();
+		let substrate_addr = <Test as Config>::AddressMapping::into_account_id(evm_addr);
+
 		let result = <Pallet<Test>>::hotfix_inc_account_sufficients(
-			Origin::signed(H160::default()),
+			Origin::signed(substrate_addr),
 			addresses,
 		);
 
@@ -64,15 +67,17 @@ fn test_hotfix_inc_account_sufficients_increments_if_nonce_nonzero() {
 
 		frame_system::Pallet::<Test>::inc_account_nonce(&substrate_addr_1);
 
-		let account_1 = frame_system::Account::<Test>::get(substrate_addr_1);
-		let account_2 = frame_system::Account::<Test>::get(substrate_addr_2);
+		let account_1 = frame_system::Account::<Test>::get(substrate_addr_1.clone());
+		let account_2 = frame_system::Account::<Test>::get(substrate_addr_2.clone());
 		assert_eq!(account_1.nonce, 1);
 		assert_eq!(account_1.sufficients, 0);
 		assert_eq!(account_2.nonce, 0);
 		assert_eq!(account_2.sufficients, 0);
 
+		let evm_addr = H160::from_str("1000000000000000000000000000000000000003").unwrap();
+		let substrate_addr_signer = <Test as Config>::AddressMapping::into_account_id(evm_addr);
 		<Pallet<Test>>::hotfix_inc_account_sufficients(
-			Origin::signed(H160::default()),
+			Origin::signed(substrate_addr_signer),
 			vec![addr_1, addr_2],
 		)
 		.unwrap();
@@ -92,18 +97,23 @@ fn test_hotfix_inc_account_sufficients_increments_with_saturation_if_nonce_nonze
 		let addr = H160::from_str("1230000000000000000000000000000000000001").unwrap();
 		let substrate_addr = <Test as Config>::AddressMapping::into_account_id(addr);
 
-		frame_system::Account::<Test>::mutate(substrate_addr, |x| {
+		frame_system::Account::<Test>::mutate(substrate_addr.clone(), |x| {
 			x.nonce = 1;
 			x.sufficients = u32::MAX;
 		});
 
-		let account = frame_system::Account::<Test>::get(substrate_addr);
+		let account = frame_system::Account::<Test>::get(substrate_addr.clone());
 
 		assert_eq!(account.sufficients, u32::MAX);
 		assert_eq!(account.nonce, 1);
 
-		<Pallet<Test>>::hotfix_inc_account_sufficients(Origin::signed(H160::default()), vec![addr])
-			.unwrap();
+		let evm_addr = H160::from_str("1000000000000000000000000000000000000003").unwrap();
+		let substrate_addr_signer = <Test as Config>::AddressMapping::into_account_id(evm_addr);
+		<Pallet<Test>>::hotfix_inc_account_sufficients(
+			Origin::signed(substrate_addr_signer),
+			vec![addr],
+		)
+		.unwrap();
 
 		let account = frame_system::Account::<Test>::get(substrate_addr);
 		assert_eq!(account.sufficients, u32::MAX);
@@ -117,19 +127,24 @@ fn test_hotfix_inc_account_sufficients_does_not_increment_if_both_nonce_and_refs
 		let addr = H160::from_str("1230000000000000000000000000000000000001").unwrap();
 		let substrate_addr = <Test as Config>::AddressMapping::into_account_id(addr);
 
-		frame_system::Account::<Test>::mutate(substrate_addr, |x| {
+		frame_system::Account::<Test>::mutate(substrate_addr.clone(), |x| {
 			x.nonce = 1;
 			x.consumers = 1;
 		});
 
-		let account = frame_system::Account::<Test>::get(substrate_addr);
+		let account = frame_system::Account::<Test>::get(substrate_addr.clone());
 
 		assert_eq!(account.sufficients, 0);
 		assert_eq!(account.nonce, 1);
 		assert_eq!(account.consumers, 1);
 
-		<Pallet<Test>>::hotfix_inc_account_sufficients(Origin::signed(H160::default()), vec![addr])
-			.unwrap();
+		let evm_addr = H160::from_str("1000000000000000000000000000000000000003").unwrap();
+		let substrate_addr_signer = <Test as Config>::AddressMapping::into_account_id(evm_addr);
+		<Pallet<Test>>::hotfix_inc_account_sufficients(
+			Origin::signed(substrate_addr_signer),
+			vec![addr],
+		)
+		.unwrap();
 
 		let account = frame_system::Account::<Test>::get(substrate_addr);
 		assert_eq!(account.sufficients, 0);
