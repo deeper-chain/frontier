@@ -21,4 +21,4 @@ ethereum-types = "0.13.1"
 jsonrpsee = { version = "0.13.0", features = ["server", "macros"] }
 rlp = "0.5"
 
-evm = { git = "https://github.com/rust-blockchain/evm", branch = "master" }
+evm = { git = "https://github.com/rust-blockchain/evm", rev = "01bcbd2205a212c34451d3b4fabc962793b057d3" }

@@ -47,7 +47,8 @@ pub use self::{
 };
 pub use ethereum::TransactionV2 as EthereumTransaction;
 pub use fc_rpc_core::{
-	EthApiServer, EthFilterApiServer, EthPubSubApiServer, NetApiServer, TxPoolApiServer, Web3ApiServer,
+	EthApiServer, EthFilterApiServer, EthPubSubApiServer, NetApiServer, TxPoolApiServer,
+	Web3ApiServer,
 };
 
 pub mod frontier_backend_client {

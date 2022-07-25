@@ -17,13 +17,10 @@
 use crate::{internal_err, public_key};
 use ethereum_types::{H160, H256, U256};
 pub use fc_rpc_core::{
-	types::{Get, Summary, TransactionContent, TransactionMap, TxPoolResult},
-	TxPoolApi,
+	types::{Get as GetT, Summary, TransactionContent, TransactionMap, TxPoolResult},
+	TxPoolApiServer,
 };
-use fp_rpc::{Transaction as TransactionV2, TxPoolResponse, TxPoolRuntimeRPCApi};
-use jsonrpc_core::Result as RpcResult;
-// TODO @tgmichel It looks like this graph stuff moved to the test-helpers feature.
-// Is it only for tests? Should we use it here?
+use jsonrpsee::core::RpcResult;
 use sc_transaction_pool::{ChainApi, Pool};
 use sc_transaction_pool_api::InPoolTransaction;
 use serde::Serialize;
@@ -34,13 +31,15 @@ use sp_runtime::traits::Block as BlockT;
 use std::collections::HashMap;
 use std::{marker::PhantomData, sync::Arc};
 
+use fp_rpc::{Transaction as TransactionV2, TxPoolResponse, TxPoolRuntimeRPCApi};
+
 pub struct TxPool<B: BlockT, C, A: ChainApi> {
 	client: Arc<C>,
 	graph: Arc<Pool<A>>,
 	_marker: PhantomData<B>,
 }
 
-impl<B: BlockT, C, A: ChainApi> TxPool<B, C, A>
+impl<B, C, A> TxPool<B, C, A>
 where
 	C: ProvideRuntimeApi<B>,
 	C: HeaderMetadata<B, Error = BlockChainError> + HeaderBackend<B> + 'static,
@@ -53,7 +52,7 @@ where
 	/// queues.
 	fn map_build<T>(&self) -> RpcResult<TxPoolResult<TransactionMap<T>>>
 	where
-		T: Get + Serialize,
+		T: GetT + Serialize,
 	{
 		// Collect transactions in the ready validated pool.
 		let txs_ready = self
@@ -145,7 +144,9 @@ where
 		}
 		Ok(TxPoolResult { pending, queued })
 	}
+}
 
+impl<B: BlockT, C, A: ChainApi> TxPool<B, C, A> {
 	pub fn new(client: Arc<C>, graph: Arc<Pool<A>>) -> Self {
 		Self {
 			client,
@@ -155,7 +156,7 @@ where
 	}
 }
 
-impl<B, C, A> TxPoolApi for TxPool<B, C, A>
+impl<B, C, A> TxPoolApiServer for TxPool<B, C, A>
 where
 	C: ProvideRuntimeApi<B>,
 	C: HeaderMetadata<B, Error = BlockChainError> + HeaderBackend<B>,
