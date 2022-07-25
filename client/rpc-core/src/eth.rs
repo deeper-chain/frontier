@@ -126,8 +126,8 @@ pub trait EthApi {
 	async fn transaction_receipt(&self, hash: H256) -> Result<Option<Receipt>>;
 
 	/// Returns transaction status by transaction hash.
-	#[rpc(name = "eth_getTransactionStatus")]
-	fn transaction_status(&self, _: H256) -> BoxFuture<Result<Option<Status>>>;
+	#[method(name = "eth_getTransactionStatus")]
+	async fn transaction_status(&self, hash: H256) -> Result<Option<Status>>;
 
 	// ########################################################################
 	// State
