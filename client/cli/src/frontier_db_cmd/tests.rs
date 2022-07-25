@@ -539,7 +539,7 @@ mod tests {
 		let mut client = Arc::new(c);
 
 		// Get some transaction status.
-		let t1 = fp_rpc::TransactionStatus::default();
+		let t1 = fp_rpc::TransactionStatusV2::default();
 		let t1_hash = t1.transaction_hash;
 		let statuses = vec![t1];
 
@@ -607,8 +607,8 @@ mod tests {
 		let mut client = Arc::new(c);
 
 		// Get some transaction status.
-		let t1 = fp_rpc::TransactionStatus::default();
-		let mut t2 = fp_rpc::TransactionStatus::default();
+		let t1 = fp_rpc::TransactionStatusV2::default();
+		let mut t2 = fp_rpc::TransactionStatusV2::default();
 		t2.transaction_hash =
 			H256::from_str("0x2200000000000000000000000000000000000000000000000000000000000000")
 				.unwrap();
@@ -742,7 +742,7 @@ mod tests {
 		let mut client = Arc::new(c);
 
 		// Get some transaction status.
-		let t1 = fp_rpc::TransactionStatus::default();
+		let t1 = fp_rpc::TransactionStatusV2::default();
 		let t1_hash = t1.transaction_hash;
 		let statuses = vec![t1];
 
