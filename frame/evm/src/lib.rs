@@ -201,43 +201,6 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		// Mapped address, cannot get control of the mapped deper_address. Used only as a reward address
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,4))]
-		pub fn reward_mapping(
-			origin: OriginFor<T>,
-			eth_address: H160,
-		) -> DispatchResultWithPostInfo {
-			let deeper_address = ensure_signed(origin)?;
-
-			ensure!(
-				!RewardsAccountsEVMtoDeeper::<T>::contains_key(&eth_address),
-				Error::<T>::EthAddressAlreadyMapped
-			);
-
-			if RewardsAccountsDeepertoEVM::<T>::contains_key(&deeper_address) {
-				let evm_old_address = Self::rewards_accounts_deeper_evm(&deeper_address)
-					.ok_or(Error::<T>::NotBound)?;
-				if eth_address != evm_old_address {
-					RewardsAccountsEVMtoDeeper::<T>::remove(eth_address);
-					RewardsAccountsDeepertoEVM::<T>::remove(&deeper_address);
-
-					RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_address);
-					RewardsAccountsDeepertoEVM::<T>::insert(&deeper_address, eth_address);
-					Self::deposit_event(Event::RewardsAccountsSwitch(
-						deeper_address,
-						evm_old_address,
-						eth_address,
-					));
-				}
-			} else {
-				RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_address);
-				RewardsAccountsDeepertoEVM::<T>::insert(&deeper_address, eth_address);
-
-				Self::deposit_event(Event::RewardsAccounts(deeper_address, eth_address));
-			}
-			Ok(().into())
-		}
-
 		/// Issue an EVM call operation. This is similar to a message call transaction in Ethereum.
 		#[pallet::weight(T::GasWeightMapping::gas_to_weight(*gas_limit))]
 		pub fn call(
@@ -461,10 +424,6 @@ pub mod pallet {
 		PairedAccounts(T::AccountId, H160),
 		/// Mapping between Substrate accounts and Multi Eth accounts
 		DevicePairedAccounts(T::AccountId, H160),
-		/// Bind worker eth_address to reward address
-		RewardsAccounts(T::AccountId, H160),
-		/// Switch Bind worker eth_address to reward address
-		RewardsAccountsSwitch(T::AccountId, H160, H160),
 	}
 
 	#[pallet::error]
@@ -489,8 +448,6 @@ pub mod pallet {
 		BadSignature,
 		/// Invalid signature
 		InvalidSignature,
-		/// ETH addresses are already bound
-		EthAddressAlreadyMapped,
 		/// No binding information
 		NotBound,
 		/// Gas limit is too low.
@@ -582,23 +539,11 @@ pub mod pallet {
 	#[pallet::getter(fn accounts)]
 	pub type Accounts<T: Config> = StorageMap<_, Blake2_128Concat, H160, T::AccountId, OptionQuery>;
 
-	/// Deeper Accounts Rewarded by NPoW(Evm_Address => Deeper_Address)
-	#[pallet::storage]
-	#[pallet::getter(fn rewards_accounts_evm_deeper)]
-	pub type RewardsAccountsEVMtoDeeper<T: Config> =
-		StorageMap<_, Blake2_128Concat, H160, T::AccountId, OptionQuery>;
-
 	/// AccountId => Eth Address
 	#[pallet::storage]
 	#[pallet::getter(fn eth_addresses)]
 	pub type EthAddresses<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, H160, ValueQuery>;
-
-	/// Deeper Accounts Rewarded by NPoW(Deeper_Address => Evm_Address)
-	#[pallet::storage]
-	#[pallet::getter(fn rewards_accounts_deeper_evm)]
-	pub type RewardsAccountsDeepertoEVM<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, H160, OptionQuery>;
 }
 
 /// Type alias for currency balance.
@@ -956,20 +901,5 @@ U256: UniqueSaturatedInto<BalanceOf<T>>,
 
 	fn pay_priority_fee(tip: Self::LiquidityInfo) {
 		<EVMCurrencyAdapter::<<T as Config>::Currency, ()> as OnChargeEVMTransaction<T>>::pay_priority_fee(tip);
-	}
-}
-
-pub trait NpowAddressMapping<AccountId> {
-	fn evm_to_deeper(address: H160) -> Option<AccountId>;
-	fn deeper_to_evm(address: AccountId) -> Option<H160>;
-}
-
-impl<T: Config> NpowAddressMapping<T::AccountId> for Pallet<T> {
-	fn evm_to_deeper(address: H160) -> Option<T::AccountId> {
-		Self::rewards_accounts_evm_deeper(address)
-	}
-
-	fn deeper_to_evm(address: T::AccountId) -> Option<H160> {
-		Self::rewards_accounts_deeper_evm(address)
 	}
 }
