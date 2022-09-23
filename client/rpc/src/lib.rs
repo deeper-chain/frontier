@@ -33,7 +33,7 @@ mod signer;
 mod web3;
 
 pub use self::{
-	eth::{Eth, EthBlockDataCacheTask, EthFilter, EthTask},
+	eth::{format, EstimateGasAdapter, Eth, EthBlockDataCacheTask, EthFilter, EthTask},
 	eth_pubsub::{EthPubSub, EthereumSubIdProvider},
 	net::Net,
 	overrides::{
@@ -81,6 +81,8 @@ pub mod frontier_backend_client {
 			BlockNumber::Latest => Some(BlockId::Hash(client.info().best_hash)),
 			BlockNumber::Earliest => Some(BlockId::Number(Zero::zero())),
 			BlockNumber::Pending => None,
+			BlockNumber::Safe => Some(BlockId::Hash(client.info().finalized_hash)),
+			BlockNumber::Finalized => Some(BlockId::Hash(client.info().finalized_hash)),
 		})
 	}
 
