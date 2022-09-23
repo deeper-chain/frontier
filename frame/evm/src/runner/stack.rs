@@ -180,11 +180,13 @@ where
 				log.data.len(),
 				log.data
 			);
-			Pallet::<T>::deposit_event(Event::<T>::Log(Log {
-				address: log.address,
-				topics: log.topics.clone(),
-				data: log.data.clone(),
-			}));
+			Pallet::<T>::deposit_event(Event::<T>::Log {
+				log: Log {
+					address: log.address,
+					topics: log.topics.clone(),
+					data: log.data.clone(),
+				},
+			});
 		}
 
 		Ok(ExecutionInfo {
@@ -520,7 +522,7 @@ impl<'vicinity, 'config, T: Config> BackendT for SubstrateStackState<'vicinity, 
 	}
 
 	fn block_hash(&self, number: U256) -> H256 {
-		if number > U256::from(u32::max_value()) {
+		if number > U256::from(u32::MAX) {
 			H256::default()
 		} else {
 			T::BlockHashMapping::block_hash(number.as_u32())
@@ -648,6 +650,7 @@ where
 	}
 
 	fn reset_storage(&mut self, address: H160) {
+		#[allow(deprecated)]
 		let _ = <AccountStorages<T>>::remove_prefix(address, None);
 	}
 

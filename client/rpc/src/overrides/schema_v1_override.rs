@@ -74,7 +74,7 @@ where
 {
 	/// For a given account address, returns pallet_evm::AccountCodes.
 	fn account_code_at(&self, block: &BlockId<B>, address: H160) -> Option<Vec<u8>> {
-		let mut key: Vec<u8> = storage_prefix_build(b"EVM", b"AccountCodes");
+		let mut key: Vec<u8> = storage_prefix_build(PALLET_EVM, EVM_ACCOUNT_CODES);
 		key.extend(blake2_128_extend(address.as_bytes()));
 		self.query_storage::<Vec<u8>>(block, &StorageKey(key))
 	}
@@ -84,7 +84,7 @@ where
 		let tmp: &mut [u8; 32] = &mut [0; 32];
 		index.to_big_endian(tmp);
 
-		let mut key: Vec<u8> = storage_prefix_build(b"EVM", b"AccountStorages");
+		let mut key: Vec<u8> = storage_prefix_build(PALLET_EVM, EVM_ACCOUNT_STORAGES);
 		key.extend(blake2_128_extend(address.as_bytes()));
 		key.extend(blake2_128_extend(tmp));
 
@@ -95,7 +95,10 @@ where
 	fn current_block(&self, block: &BlockId<B>) -> Option<ethereum::BlockV2> {
 		self.query_storage::<ethereum::BlockV0>(
 			block,
-			&StorageKey(storage_prefix_build(b"Ethereum", b"CurrentBlock")),
+			&StorageKey(storage_prefix_build(
+				PALLET_ETHEREUM,
+				ETHEREUM_CURRENT_BLOCK,
+			)),
 		)
 		.map(Into::into)
 	}
@@ -104,7 +107,10 @@ where
 	fn current_receipts(&self, block: &BlockId<B>) -> Option<Vec<ethereum::ReceiptV3>> {
 		self.query_storage::<Vec<ethereum::ReceiptV0>>(
 			block,
-			&StorageKey(storage_prefix_build(b"Ethereum", b"CurrentReceipts")),
+			&StorageKey(storage_prefix_build(
+				PALLET_ETHEREUM,
+				ETHEREUM_CURRENT_RECEIPTS,
+			)),
 		)
 		.map(|receipts| {
 			receipts

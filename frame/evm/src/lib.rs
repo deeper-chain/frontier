@@ -108,7 +108,7 @@ pub mod pallet {
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	#[pallet::without_storage_info]
-	pub struct Pallet<T>(_);
+	pub struct Pallet<T>(PhantomData<T>);
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
@@ -286,10 +286,10 @@ pub mod pallet {
 
 			match info.exit_reason {
 				ExitReason::Succeed(_) => {
-					Pallet::<T>::deposit_event(Event::<T>::Executed(target));
+					Pallet::<T>::deposit_event(Event::<T>::Executed { address: target });
 				}
 				_ => {
-					Pallet::<T>::deposit_event(Event::<T>::ExecutedFailed(target));
+					Pallet::<T>::deposit_event(Event::<T>::ExecutedFailed { address: target });
 				}
 			};
 
@@ -351,14 +351,18 @@ pub mod pallet {
 					value: create_address,
 					..
 				} => {
-					Pallet::<T>::deposit_event(Event::<T>::Created(create_address));
+					Pallet::<T>::deposit_event(Event::<T>::Created {
+						address: create_address,
+					});
 				}
 				CreateInfo {
 					exit_reason: _,
 					value: create_address,
 					..
 				} => {
-					Pallet::<T>::deposit_event(Event::<T>::CreatedFailed(create_address));
+					Pallet::<T>::deposit_event(Event::<T>::CreatedFailed {
+						address: create_address,
+					});
 				}
 			}
 
@@ -421,14 +425,18 @@ pub mod pallet {
 					value: create_address,
 					..
 				} => {
-					Pallet::<T>::deposit_event(Event::<T>::Created(create_address));
+					Pallet::<T>::deposit_event(Event::<T>::Created {
+						address: create_address,
+					});
 				}
 				CreateInfo {
 					exit_reason: _,
 					value: create_address,
 					..
 				} => {
-					Pallet::<T>::deposit_event(Event::<T>::CreatedFailed(create_address));
+					Pallet::<T>::deposit_event(Event::<T>::CreatedFailed {
+						address: create_address,
+					});
 				}
 			}
 
@@ -507,7 +515,7 @@ pub mod pallet {
 			match validation_error {
 				InvalidEvmTransactionError::GasLimitTooLow => Error::<T>::GasLimitTooLow,
 				InvalidEvmTransactionError::GasLimitTooHigh => Error::<T>::GasLimitTooHigh,
-				InvalidEvmTransactionError::GasPriceTooLow => Error::<T>::GasLimitTooLow,
+				InvalidEvmTransactionError::GasPriceTooLow => Error::<T>::GasPriceTooLow,
 				InvalidEvmTransactionError::PriorityFeeTooHigh => Error::<T>::GasPriceTooLow,
 				InvalidEvmTransactionError::BalanceTooLow => Error::<T>::BalanceLow,
 				InvalidEvmTransactionError::TxNonceTooLow => Error::<T>::InvalidNonce,
@@ -758,6 +766,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		<AccountCodes<T>>::remove(address);
+		#[allow(deprecated)]
 		let _ = <AccountStorages<T>>::remove_prefix(address, None);
 	}
 

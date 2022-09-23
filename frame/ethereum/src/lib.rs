@@ -40,7 +40,7 @@ use fp_storage::{EthereumStorageSchema, PALLET_ETHEREUM_SCHEMA};
 #[cfg(feature = "try-runtime")]
 use frame_support::traits::OnRuntimeUpgradeHelpersExt;
 use frame_support::{
-	codec::{Decode, Encode},
+	codec::{Decode, Encode, MaxEncodedLen},
 	dispatch::DispatchResultWithPostInfo,
 	scale_info::TypeInfo,
 	traits::{EnsureOrigin, Get, PalletInfoAccess},
@@ -64,7 +64,7 @@ pub use ethereum::{
 };
 pub use fp_rpc::{TransactionStatusV1, TransactionStatusV2 as TransactionStatus};
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
 pub enum RawOrigin {
 	EthereumTransaction(H160),
 }
@@ -171,14 +171,6 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_timestamp::Config + pallet_evm::Config {
-		/// The overarching event type.
-		type Event: From<Event> + IsType<<Self as frame_system::Config>::Event>;
-		/// How Ethereum state root is calculated.
-		type StateRoot: Get<H256>;
-	}
-
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	#[pallet::without_storage_info]
@@ -186,6 +178,14 @@ pub mod pallet {
 
 	#[pallet::origin]
 	pub type Origin = RawOrigin;
+
+	#[pallet::config]
+	pub trait Config: frame_system::Config + pallet_timestamp::Config + pallet_evm::Config {
+		/// The overarching event type.
+		type Event: From<Event> + IsType<<Self as frame_system::Config>::Event>;
+		/// How Ethereum state root is calculated.
+		type StateRoot: Get<H256>;
+	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
@@ -277,8 +277,13 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event {
-		/// An ethereum transaction was successfully executed. [from, to/contract_address, transaction_hash, exit_reason]
-		Executed(H160, H160, H256, ExitReason),
+		/// An ethereum transaction was successfully executed.
+		Executed {
+			from: H160,
+			to: H160,
+			transaction_hash: H256,
+			exit_reason: ExitReason,
+		},
 	}
 
 	#[pallet::error]
@@ -594,12 +599,12 @@ impl<T: Config> Pallet<T> {
 
 		Pending::<T>::append((transaction, status, receipt));
 
-		Self::deposit_event(Event::Executed(
-			source,
-			dest.unwrap_or_default(),
+		Self::deposit_event(Event::Executed {
+			from: source,
+			to: dest.unwrap_or_default(),
 			transaction_hash,
-			reason,
-		));
+			exit_reason: reason,
+		});
 
 		Ok(PostDispatchInfo {
 			actual_weight: Some(T::GasWeightMapping::gas_to_weight(
