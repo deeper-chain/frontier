@@ -30,6 +30,7 @@ use sp_runtime::{
 use sp_storage::StorageKey;
 
 use fp_rpc::{TransactionStatusV1, TransactionStatusV2 as TransactionStatus};
+use fp_storage::*;
 
 use super::{blake2_128_extend, storage_prefix_build, StorageOverride};
 

@@ -180,13 +180,11 @@ where
 				log.data.len(),
 				log.data
 			);
-			Pallet::<T>::deposit_event(Event::<T>::Log {
-				log: Log {
-					address: log.address,
-					topics: log.topics.clone(),
-					data: log.data.clone(),
-				},
-			});
+			Pallet::<T>::deposit_event(Event::<T>::Log(Log {
+				address: log.address,
+				topics: log.topics.clone(),
+				data: log.data.clone(),
+			}));
 		}
 
 		Ok(ExecutionInfo {
