@@ -20,7 +20,7 @@ use std::{marker::PhantomData, sync::Arc};
 
 use codec::Decode;
 use ethereum_types::{H160, H256, U256};
-
+// Substrate
 use sc_client_api::backend::{Backend, StateBackend, StorageProvider};
 use sp_api::BlockId;
 use sp_runtime::{
@@ -133,8 +133,8 @@ where
 		self.query_storage::<Vec<TransactionStatusV1>>(
 			block,
 			&StorageKey(storage_prefix_build(
-				b"Ethereum",
-				b"CurrentTransactionStatuses",
+				PALLET_ETHEREUM,
+				ETHEREUM_CURRENT_TRANSACTION_STATUS,
 			)),
 		)
 		.map(|statuses| {
