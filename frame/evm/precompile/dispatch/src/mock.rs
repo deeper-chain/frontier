@@ -27,14 +27,12 @@ use sp_core::{H160, H256, U256};
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentityLookup},
+	AccountId32,
 };
-use sp_std::{boxed::Box, prelude::*, str::FromStr};
+use sp_std::{boxed::Box, prelude::*};
 
 use fp_evm::{ExitError, ExitReason, Transfer};
-use pallet_evm::{
-	Context, EnsureAddressNever, EnsureAddressRoot, FeeCalculator, IdentityAddressMapping,
-	PrecompileHandle,
-};
+use pallet_evm::{Context, FeeCalculator, PrecompileHandle};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -48,7 +46,7 @@ frame_support::construct_runtime! {
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage},
-		EVM: pallet_evm::{Pallet, Call, Storage, Config, Event<T>},
+		EVM: pallet_evm::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Event},
 	}
 }
@@ -69,7 +67,7 @@ impl frame_system::Config for Test {
 	type Hash = H256;
 	type Call = Call;
 	type Hashing = BlakeTwo256;
-	type AccountId = H160;
+	type AccountId = AccountId32;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = generic::Header<u64, BlakeTwo256>;
 	type Event = Event;
@@ -125,15 +123,16 @@ impl FeeCalculator for FixedGasPrice {
 	}
 }
 
-pub struct FindAuthorTruncated;
-impl FindAuthor<H160> for FindAuthorTruncated {
-	fn find_author<'a, I>(_digests: I) -> Option<H160>
+pub struct FindAuthorGiven;
+impl FindAuthor<AccountId32> for FindAuthorGiven {
+	fn find_author<'a, I>(_digests: I) -> Option<AccountId32>
 	where
 		I: 'a + IntoIterator<Item = (ConsensusEngineId, &'a [u8])>,
 	{
-		Some(H160::from_str("1234500000000000000000000000000000000000").unwrap())
+		Some(AccountId32::from([1u8; 32]))
 	}
 }
+
 parameter_types! {
 	pub BlockGasLimit: U256 = U256::max_value();
 }
@@ -141,10 +140,7 @@ impl pallet_evm::Config for Test {
 	type FeeCalculator = FixedGasPrice;
 	type GasWeightMapping = ();
 
-	type CallOrigin = EnsureAddressRoot<Self::AccountId>;
-	type WithdrawOrigin = EnsureAddressNever<Self::AccountId>;
-
-	type AddressMapping = IdentityAddressMapping;
+	type AddressMapping = pallet_evm::PairedAddressMapping<Test>;
 	type Currency = Balances;
 	type Runner = pallet_evm::runner::stack::Runner<Self>;
 
@@ -155,7 +151,7 @@ impl pallet_evm::Config for Test {
 	type BlockGasLimit = BlockGasLimit;
 	type OnChargeTransaction = ();
 	type BlockHashMapping = pallet_evm::SubstrateBlockHashMapping<Self>;
-	type FindAuthor = FindAuthorTruncated;
+	type FindAuthor = FindAuthorGiven;
 }
 
 pub(crate) struct MockHandle {

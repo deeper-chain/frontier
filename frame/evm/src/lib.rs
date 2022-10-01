@@ -198,7 +198,10 @@ pub mod pallet {
 			Accounts::<T>::insert(eth_address, &who);
 			EthAddresses::<T>::insert(&who, address);
 
-			Self::deposit_event(Event::PairedAccounts(substrate_address: who, eth_address: eth_address));
+			Self::deposit_event(Event::PairedAccounts {
+				substrate_address: who,
+				eth_address,
+			});
 			Ok(().into())
 		}
 
@@ -224,17 +227,20 @@ pub mod pallet {
 
 					RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_address);
 					RewardsAccountsDeepertoEVM::<T>::insert(&deeper_address, eth_address);
-					Self::deposit_event(Event::RewardsAccountsSwitch(
+					Self::deposit_event(Event::RewardsAccountsSwitch {
 						substrate_address: deeper_address,
 						eth_address_old: evm_old_address,
 						eth_address_new: eth_address,
-					));
+					});
 				}
 			} else {
 				RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_address);
 				RewardsAccountsDeepertoEVM::<T>::insert(&deeper_address, eth_address);
 
-				Self::deposit_event(Event::RewardsAccounts(substrate_address: deeper_address, eth_address: eth_address));
+				Self::deposit_event(Event::RewardsAccounts {
+					substrate_address: deeper_address,
+					eth_address,
+				});
 			}
 			Ok(().into())
 		}
@@ -463,13 +469,21 @@ pub mod pallet {
 		/// A contract has been executed with errors. States are reverted with only gas fees applied.
 		ExecutedFailed { address: H160 },
 		/// Mapping between Substrate accounts and Eth accounts
-		PairedAccounts(substrate_address: T::AccountId, eth_address: H160),
-		/// Mapping between Substrate accounts and Multi Eth accounts
-		DevicePairedAccounts(substrate_address: T::AccountId, eth_address: H160),
+		PairedAccounts {
+			substrate_address: T::AccountId,
+			eth_address: H160,
+		},
 		/// Bind worker eth_address to reward address
-		RewardsAccounts(substrate_address: T::AccountId, eth_address: H160),
+		RewardsAccounts {
+			substrate_address: T::AccountId,
+			eth_address: H160,
+		},
 		/// Switch Bind worker eth_address to reward address
-		RewardsAccountsSwitch(substrate_address: T::AccountId, eth_address_old: H160, eth_address_new: H160),
+		RewardsAccountsSwitch {
+			substrate_address: T::AccountId,
+			eth_address_old: H160,
+			eth_address_new: H160,
+		},
 	}
 
 	#[pallet::error]
