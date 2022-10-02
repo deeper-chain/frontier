@@ -159,7 +159,7 @@ pub mod pallet {
 		/// - `eth_address`: The Eth address to bind to the caller's Substrate account
 		/// - `eth_signature`: A signature to prove the ownership Eth address
 		// todo: cancel account pair
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(4,2))]
+		#[pallet::weight(Weight::from_ref_time(10_000u64) + T::DbWeight::get().reads_writes(4,2))]
 		pub fn pair_accounts(
 			origin: OriginFor<T>,
 			eth_address: H160,
@@ -206,7 +206,7 @@ pub mod pallet {
 		}
 
 		// Mapped address, cannot get control of the mapped deper_address. Used only as a reward address
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,4))]
+		#[pallet::weight(Weight::from_ref_time(10_000u64) + T::DbWeight::get().reads_writes(1,4))]
 		pub fn reward_mapping(
 			origin: OriginFor<T>,
 			eth_address: H160,
@@ -695,10 +695,10 @@ pub trait GasWeightMapping {
 
 impl GasWeightMapping for () {
 	fn gas_to_weight(gas: u64) -> Weight {
-		gas as Weight
+		Weight::from_ref_time(gas)
 	}
 	fn weight_to_gas(weight: Weight) -> u64 {
-		weight as u64
+		weight.ref_time()
 	}
 }
 
