@@ -24,6 +24,7 @@ use sc_network::ExHashT;
 use sc_transaction_pool::ChainApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
+use sp_consensus::SyncOracle;
 use sp_runtime::{
 	generic::BlockId,
 	traits::{BlakeTwo256, Block as BlockT, UniqueSaturatedInto},
@@ -31,7 +32,6 @@ use sp_runtime::{
 // Frontier
 use fc_rpc_core::types::*;
 use fp_rpc::EthereumRuntimeRPCApi;
-use sp_consensus::SyncOracle;
 
 use crate::{eth::Eth, frontier_backend_client, internal_err};
 

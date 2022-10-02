@@ -24,12 +24,39 @@ use codec::Encode;
 use fp_evm::{Context, GenesisAccount};
 use frame_support::{assert_ok, traits::GenesisBuild};
 use sp_core::{H160, U256};
+use sp_runtime::AccountId32;
 use std::{collections::BTreeMap, str::FromStr};
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default()
 		.build_storage::<Test>()
 		.unwrap();
+
+	let mut account_pairs = BTreeMap::new();
+	account_pairs.insert(
+		H160::from_str("1000000000000000000000000000000000000001").unwrap(),
+		AccountId32::new([1u8; 32]),
+	);
+	account_pairs.insert(
+		H160::from_str("1000000000000000000000000000000000000002").unwrap(),
+		AccountId32::new([2u8; 32]),
+	);
+	account_pairs.insert(
+		H160::from_str("1234500000000000000000000000000000000000").unwrap(),
+		AccountId32::new([3u8; 32]),
+	);
+	account_pairs.insert(
+		H160::from_str("1000000000000000000000000000000000000003").unwrap(),
+		AccountId32::new([4u8; 32]),
+	);
+	account_pairs.insert(
+		H160::from_str("1000000000000000000000000000000000000004").unwrap(),
+		AccountId32::new([5u8; 32]),
+	);
+	account_pairs.insert(
+		H160::from_str("1000000000000000000000000000000000000005").unwrap(),
+		AccountId32::new([6u8; 32]),
+	);
 
 	let mut accounts = BTreeMap::new();
 	accounts.insert(
@@ -66,15 +93,18 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 	pallet_balances::GenesisConfig::<Test> {
 		// Create the block author account with some balance.
-		balances: vec![(
-			H160::from_str("0x1234500000000000000000000000000000000000").unwrap(),
-			12345,
-		)],
+		balances: vec![(AccountId32::new([3u8; 32]), 12345)],
 	}
 	.assimilate_storage(&mut t)
 	.expect("Pallet balances storage can be assimilated");
-	GenesisBuild::<Test>::assimilate_storage(&pallet_evm::GenesisConfig { accounts }, &mut t)
-		.unwrap();
+	GenesisBuild::<Test>::assimilate_storage(
+		&pallet_evm::GenesisConfig {
+			account_pairs,
+			accounts,
+		},
+		&mut t,
+	)
+	.unwrap();
 	t.into()
 }
 

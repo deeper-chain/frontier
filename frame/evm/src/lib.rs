@@ -198,7 +198,10 @@ pub mod pallet {
 			Accounts::<T>::insert(eth_address, &who);
 			EthAddresses::<T>::insert(&who, address);
 
-			Self::deposit_event(Event::PairedAccounts(who, eth_address));
+			Self::deposit_event(Event::PairedAccounts {
+				substrate_address: who,
+				eth_address,
+			});
 			Ok(().into())
 		}
 
@@ -224,17 +227,20 @@ pub mod pallet {
 
 					RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_address);
 					RewardsAccountsDeepertoEVM::<T>::insert(&deeper_address, eth_address);
-					Self::deposit_event(Event::RewardsAccountsSwitch(
-						deeper_address,
-						evm_old_address,
-						eth_address,
-					));
+					Self::deposit_event(Event::RewardsAccountsSwitch {
+						substrate_address: deeper_address,
+						eth_address_old: evm_old_address,
+						eth_address_new: eth_address,
+					});
 				}
 			} else {
 				RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_address);
 				RewardsAccountsDeepertoEVM::<T>::insert(&deeper_address, eth_address);
 
-				Self::deposit_event(Event::RewardsAccounts(deeper_address, eth_address));
+				Self::deposit_event(Event::RewardsAccounts {
+					substrate_address: deeper_address,
+					eth_address,
+				});
 			}
 			Ok(().into())
 		}
@@ -286,10 +292,10 @@ pub mod pallet {
 
 			match info.exit_reason {
 				ExitReason::Succeed(_) => {
-					Pallet::<T>::deposit_event(Event::<T>::Executed(target));
+					Pallet::<T>::deposit_event(Event::<T>::Executed { address: target });
 				}
 				_ => {
-					Pallet::<T>::deposit_event(Event::<T>::ExecutedFailed(target));
+					Pallet::<T>::deposit_event(Event::<T>::ExecutedFailed { address: target });
 				}
 			};
 
@@ -351,14 +357,18 @@ pub mod pallet {
 					value: create_address,
 					..
 				} => {
-					Pallet::<T>::deposit_event(Event::<T>::Created(create_address));
+					Pallet::<T>::deposit_event(Event::<T>::Created {
+						address: create_address,
+					});
 				}
 				CreateInfo {
 					exit_reason: _,
 					value: create_address,
 					..
 				} => {
-					Pallet::<T>::deposit_event(Event::<T>::CreatedFailed(create_address));
+					Pallet::<T>::deposit_event(Event::<T>::CreatedFailed {
+						address: create_address,
+					});
 				}
 			}
 
@@ -421,14 +431,18 @@ pub mod pallet {
 					value: create_address,
 					..
 				} => {
-					Pallet::<T>::deposit_event(Event::<T>::Created(create_address));
+					Pallet::<T>::deposit_event(Event::<T>::Created {
+						address: create_address,
+					});
 				}
 				CreateInfo {
 					exit_reason: _,
 					value: create_address,
 					..
 				} => {
-					Pallet::<T>::deposit_event(Event::<T>::CreatedFailed(create_address));
+					Pallet::<T>::deposit_event(Event::<T>::CreatedFailed {
+						address: create_address,
+					});
 				}
 			}
 
@@ -445,27 +459,31 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Ethereum events from contracts.
-		Log(Log),
-		/// A contract has been created at given \[address\].
-		Created(H160),
-		/// A \[contract\] was attempted to be created, but the execution failed.
-		CreatedFailed(H160),
-		/// A \[contract\] has been executed successfully with states applied.
-		Executed(H160),
-		/// A \[contract\] has been executed with errors. States are reverted with only gas fees applied.
-		ExecutedFailed(H160),
-		/// A deposit has been made at a given address. \[sender, address, value\]
-		BalanceDeposit(T::AccountId, H160, U256),
-		/// A withdrawal has been made from a given address. \[sender, address, value\]
-		BalanceWithdraw(T::AccountId, H160, U256),
+		Log { log: Log },
+		/// A contract has been created at given address.
+		Created { address: H160 },
+		/// A contract was attempted to be created, but the execution failed.
+		CreatedFailed { address: H160 },
+		/// A contract has been executed successfully with states applied.
+		Executed { address: H160 },
+		/// A contract has been executed with errors. States are reverted with only gas fees applied.
+		ExecutedFailed { address: H160 },
 		/// Mapping between Substrate accounts and Eth accounts
-		PairedAccounts(T::AccountId, H160),
-		/// Mapping between Substrate accounts and Multi Eth accounts
-		DevicePairedAccounts(T::AccountId, H160),
+		PairedAccounts {
+			substrate_address: T::AccountId,
+			eth_address: H160,
+		},
 		/// Bind worker eth_address to reward address
-		RewardsAccounts(T::AccountId, H160),
+		RewardsAccounts {
+			substrate_address: T::AccountId,
+			eth_address: H160,
+		},
 		/// Switch Bind worker eth_address to reward address
-		RewardsAccountsSwitch(T::AccountId, H160, H160),
+		RewardsAccountsSwitch {
+			substrate_address: T::AccountId,
+			eth_address_old: H160,
+			eth_address_new: H160,
+		},
 	}
 
 	#[pallet::error]

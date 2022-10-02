@@ -18,6 +18,7 @@
 //! Consensus extension module tests for BABE consensus.
 
 use super::*;
+use frame_support::weights::Weight;
 
 fn legacy_erc20_creation_unsigned_transaction() -> LegacyUnsignedTransaction {
 	LegacyUnsignedTransaction {
@@ -336,7 +337,7 @@ fn self_contained_transaction_with_extra_gas_should_adjust_weight_with_post_disp
 	let (pairs, mut ext) = new_test_ext(1);
 	let alice = &pairs[0];
 	let base_extrinsic_weight = frame_system::limits::BlockWeights::with_sensible_defaults(
-		2000000000000,
+		Weight::from_ref_time(2000000000000),
 		sp_runtime::Perbill::from_percent(75),
 	)
 	.per_class
@@ -370,7 +371,7 @@ fn self_contained_transaction_with_extra_gas_should_adjust_weight_with_post_disp
 			expected_weight,
 			actual_weight,
 			"the block weight was unexpected, excess '{}'",
-			actual_weight as i128 - expected_weight as i128
+			actual_weight.saturating_sub(expected_weight)
 		);
 	});
 }

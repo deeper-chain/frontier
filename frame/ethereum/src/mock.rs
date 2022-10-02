@@ -32,7 +32,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	AccountId32,
 };
-use std::{collections::BTreeMap, str::FromStr};
+use std::collections::BTreeMap;
 
 use super::*;
 use crate::IntermediateStateRoot;
@@ -120,7 +120,7 @@ impl pallet_timestamp::Config for Test {
 pub struct FixedGasPrice;
 impl FeeCalculator for FixedGasPrice {
 	fn min_gas_price() -> (U256, Weight) {
-		(1.into(), 0u64)
+		(1.into(), Weight::zero())
 	}
 }
 
@@ -264,18 +264,7 @@ pub fn new_test_ext(accounts_len: usize) -> (Vec<AccountInfo>, sp_io::TestExtern
 		account_pairs.insert(pairs[i].address.clone(), pairs[i].account_id.clone());
 	}
 
-	let mut accounts = BTreeMap::new();
-	for i in 0..pairs.len() {
-		accounts.insert(
-			pairs[i].address.clone(),
-			fp_evm::GenesisAccount {
-				nonce: U256::default(),
-				balance: U256::from_str("0x1000000000000000000").unwrap(),
-				storage: Default::default(),
-				code: vec![],
-			},
-		);
-	}
+	let accounts = BTreeMap::new();
 
 	pallet_evm::GenesisConfig::<Test> {
 		account_pairs,
@@ -309,6 +298,20 @@ pub fn new_test_ext_with_initial_balance(
 	pallet_balances::GenesisConfig::<Test> { balances }
 		.assimilate_storage(&mut ext)
 		.unwrap();
+
+	let mut account_pairs = BTreeMap::new();
+	for i in 0..pairs.len() {
+		account_pairs.insert(pairs[i].address.clone(), pairs[i].account_id.clone());
+	}
+
+	let accounts = BTreeMap::new();
+
+	pallet_evm::GenesisConfig::<Test> {
+		account_pairs,
+		accounts,
+	}
+	.assimilate_storage(&mut ext)
+	.expect("Pallet evm storage can be assimilated");
 
 	(pairs, ext.into())
 }

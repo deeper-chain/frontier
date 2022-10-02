@@ -16,15 +16,13 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H160, H256, U256};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdLookup, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable,
+		AccountIdLookup, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, Get,
 		IdentifyAccount, NumberFor, PostDispatchInfoOf, UniqueSaturatedInto, Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity, TransactionValidityError},
 	ApplyExtrinsicResult, MultiSignature, Perbill, Permill,
 };
-use sp_std::{marker::PhantomData, prelude::*};
-#[cfg(feature = "std")]
-use sp_version::NativeVersion;
+use sp_std::prelude::*;
 use sp_version::RuntimeVersion;
 // Substrate FRAME
 #[cfg(feature = "with-paritydb-weights")]
@@ -36,12 +34,13 @@ use pallet_grandpa::{
 };
 use pallet_transaction_payment::CurrencyAdapter;
 // Frontier
+use fp_rpc::{TransactionStatusV2 as TransactionStatus, TxPoolResponse};
 use pallet_ethereum::{Call::transact, Transaction as EthereumTransaction};
-use pallet_evm::{Account as EVMAccount, FeeCalculator, GasWeightMapping, Runner};
+use pallet_evm::{
+	Account as EVMAccount, FeeCalculator, GasWeightMapping, PairedAddressMapping, Runner,
+};
 
 // A few exports that help ease life for downstream crates.
-use crate::sp_api_hidden_includes_construct_runtime::hidden_include::traits::Get;
-use fp_rpc::{TransactionStatusV2 as TransactionStatus, TxPoolResponse};
 pub use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU8, FindAuthor, KeyOwnerProofSystem, Randomness},
@@ -53,7 +52,6 @@ pub use frame_support::{
 };
 pub use frame_system::Call as SystemCall;
 pub use pallet_balances::Call as BalancesCall;
-use pallet_evm::PairedAddressMapping;
 pub use pallet_timestamp::Call as TimestampCall;
 
 mod precompiles;
@@ -290,6 +288,7 @@ impl pallet_sudo::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
 }
+
 impl pallet_evm_chain_id::Config for Runtime {}
 
 pub struct FindAuthorAura;
