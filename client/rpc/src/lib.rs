@@ -30,6 +30,7 @@ mod eth_pubsub;
 mod net;
 mod overrides;
 mod signer;
+mod tx_pool;
 mod web3;
 
 pub use self::{
@@ -38,14 +39,16 @@ pub use self::{
 	net::Net,
 	overrides::{
 		OverrideHandle, RuntimeApiStorageOverride, SchemaV1Override, SchemaV2Override,
-		SchemaV3Override, StorageOverride,
+		SchemaV3Override, SchemaV4Override, StorageOverride,
 	},
 	signer::{EthDevSigner, EthSigner},
+	tx_pool::TxPool,
 	web3::Web3,
 };
 pub use ethereum::TransactionV2 as EthereumTransaction;
 pub use fc_rpc_core::{
-	EthApiServer, EthFilterApiServer, EthPubSubApiServer, NetApiServer, Web3ApiServer,
+	EthApiServer, EthFilterApiServer, EthPubSubApiServer, NetApiServer, TxPoolApiServer,
+	Web3ApiServer,
 };
 
 pub mod frontier_backend_client {
@@ -152,7 +155,7 @@ pub mod frontier_backend_client {
 		BE::State: StateBackend<BlakeTwo256>,
 	{
 		if let Ok(Some(header)) = client.header(at) {
-			match client.storage(header.hash(), &StorageKey(PALLET_ETHEREUM_SCHEMA.to_vec())) {
+			match client.storage(&header.hash(), &StorageKey(PALLET_ETHEREUM_SCHEMA.to_vec())) {
 				Ok(Some(bytes)) => Decode::decode(&mut &bytes.0[..])
 					.ok()
 					.unwrap_or(EthereumStorageSchema::Undefined),

@@ -30,7 +30,7 @@ use sp_runtime::{
 };
 use sp_storage::StorageKey;
 // Frontier
-use fp_rpc::TransactionStatus;
+use fp_rpc::TransactionStatusV2;
 use fp_storage::*;
 
 use super::{blake2_128_extend, storage_prefix_build, StorageOverride};
@@ -59,7 +59,7 @@ where
 {
 	fn query_storage<T: Decode>(&self, id: &BlockId<B>, key: &StorageKey) -> Option<T> {
 		if let Ok(Some(header)) = self.client.header(*id) {
-			if let Ok(Some(data)) = self.client.storage(header.hash(), key) {
+			if let Ok(Some(data)) = self.client.storage(&header.hash(), key) {
 				if let Ok(result) = Decode::decode(&mut &data.0[..]) {
 					return Some(result);
 				}
@@ -118,14 +118,29 @@ where
 	}
 
 	/// Return the current transaction status.
-	fn current_transaction_statuses(&self, block: &BlockId<B>) -> Option<Vec<TransactionStatus>> {
-		self.query_storage::<Vec<TransactionStatus>>(
+	fn current_transaction_statuses(&self, block: &BlockId<B>) -> Option<Vec<TransactionStatusV2>> {
+		self.query_storage::<Vec<TransactionStatusV2>>(
 			block,
 			&StorageKey(storage_prefix_build(
 				PALLET_ETHEREUM,
 				ETHEREUM_CURRENT_TRANSACTION_STATUS,
 			)),
 		)
+		.map(|statuses| {
+			statuses
+				.into_iter()
+				.map(|status| TransactionStatusV2 {
+					transaction_hash: status.transaction_hash,
+					transaction_index: status.transaction_index,
+					from: status.from,
+					to: status.to,
+					contract_address: status.contract_address,
+					reason: None,
+					logs: status.logs,
+					logs_bloom: status.logs_bloom,
+				})
+				.collect()
+		})
 	}
 
 	/// Return the elasticity at the given height.

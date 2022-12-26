@@ -20,7 +20,7 @@
 use super::*;
 use fp_ethereum::ValidatedTransaction;
 use frame_support::{dispatch::DispatchClass, traits::Get, weights::Weight};
-use pallet_evm::{AddressMapping, GasWeightMapping};
+use pallet_evm::GasWeightMapping;
 
 fn eip1559_erc20_creation_unsigned_transaction() -> EIP1559UnsignedTransaction {
 	EIP1559UnsignedTransaction {
@@ -460,9 +460,6 @@ fn validated_transaction_apply_zero_gas_price_works() {
 	let (pairs, mut ext) = new_test_ext_with_initial_balance(2, 1_000);
 	let alice = &pairs[0];
 	let bob = &pairs[1];
-	let substrate_alice =
-		<Test as pallet_evm::Config>::AddressMapping::into_account_id(alice.address);
-	let substrate_bob = <Test as pallet_evm::Config>::AddressMapping::into_account_id(bob.address);
 
 	ext.execute_with(|| {
 		let transaction = EIP1559UnsignedTransaction {
@@ -481,8 +478,8 @@ fn validated_transaction_apply_zero_gas_price_works() {
 			transaction
 		));
 		// Alice didn't pay fees, transfer 100 to Bob.
-		assert_eq!(Balances::free_balance(&substrate_alice), 900);
+		assert_eq!(Balances::free_balance(&alice.account_id), 900);
 		// Bob received 100 from Alice.
-		assert_eq!(Balances::free_balance(&substrate_bob), 1_100);
+		assert_eq!(Balances::free_balance(&bob.account_id), 1_100);
 	});
 }

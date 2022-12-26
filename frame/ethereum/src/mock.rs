@@ -21,11 +21,11 @@ use ethereum::{TransactionAction, TransactionSignature};
 use frame_support::{
 	dispatch::Dispatchable,
 	parameter_types,
-	traits::{ConstU32, FindAuthor},
+	traits::{ConstU32, FindAuthor, GenesisBuild},
 	weights::Weight,
 	ConsensusEngineId, PalletId,
 };
-use pallet_evm::{AddressMapping, EnsureAddressTruncated, FeeCalculator};
+use pallet_evm::FeeCalculator;
 use rlp::RlpStream;
 use sp_core::{hashing::keccak_256, H160, H256, U256};
 use sp_runtime::{
@@ -33,13 +33,15 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	AccountId32,
 };
+use std::{collections::BTreeMap, str::FromStr};
 
 use super::*;
+use crate as pallet_ethereum;
 use crate::IntermediateStateRoot;
 
 pub type SignedExtra = (frame_system::CheckSpecVersion<Test>,);
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test, (), SignedExtra>;
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 frame_support::construct_runtime! {
@@ -48,11 +50,11 @@ frame_support::construct_runtime! {
 		NodeBlock = Block,
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-		Timestamp: pallet_timestamp::{Pallet, Call, Storage},
-		EVM: pallet_evm::{Pallet, Call, Storage, Config, Event<T>},
-		Ethereum: crate::{Pallet, Call, Storage, Event, Origin},
+		System: frame_system,
+		Balances: pallet_balances,
+		Timestamp: pallet_timestamp,
+		EVM: pallet_evm,
+		Ethereum: pallet_ethereum,
 	}
 }
 
@@ -124,13 +126,13 @@ impl FeeCalculator for FixedGasPrice {
 	}
 }
 
-pub struct FindAuthorTruncated;
-impl FindAuthor<H160> for FindAuthorTruncated {
-	fn find_author<'a, I>(_digests: I) -> Option<H160>
+pub struct FindAuthorGiven;
+impl FindAuthor<AccountId32> for FindAuthorGiven {
+	fn find_author<'a, I>(_digests: I) -> Option<AccountId32>
 	where
 		I: 'a + IntoIterator<Item = (ConsensusEngineId, &'a [u8])>,
 	{
-		Some(address_build(0).address)
+		Some(AccountId32::from([1u8; 32]))
 	}
 }
 
@@ -142,24 +144,12 @@ parameter_types! {
 	pub const WeightPerGas: Weight = Weight::from_ref_time(20_000);
 }
 
-pub struct HashedAddressMapping;
-
-impl AddressMapping<AccountId32> for HashedAddressMapping {
-	fn into_account_id(address: H160) -> AccountId32 {
-		let mut data = [0u8; 32];
-		data[0..20].copy_from_slice(&address[..]);
-		AccountId32::from(Into::<[u8; 32]>::into(data))
-	}
-}
-
 impl pallet_evm::Config for Test {
 	type FeeCalculator = FixedGasPrice;
 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
 	type WeightPerGas = WeightPerGas;
 	type BlockHashMapping = crate::EthereumBlockHashMapping<Self>;
-	type CallOrigin = EnsureAddressTruncated;
-	type WithdrawOrigin = EnsureAddressTruncated;
-	type AddressMapping = HashedAddressMapping;
+	type AddressMapping = pallet_evm::PairedAddressMapping<Test>;
 	type Currency = Balances;
 	type RuntimeEvent = RuntimeEvent;
 	type PrecompilesType = ();
@@ -168,7 +158,7 @@ impl pallet_evm::Config for Test {
 	type BlockGasLimit = BlockGasLimit;
 	type Runner = pallet_evm::runner::stack::Runner<Self>;
 	type OnChargeTransaction = ();
-	type FindAuthor = FindAuthorTruncated;
+	type FindAuthor = FindAuthorGiven;
 }
 
 impl Config for Test {
@@ -232,6 +222,7 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
 	}
 }
 
+#[derive(Debug)]
 pub struct AccountInfo {
 	pub address: H160,
 	pub account_id: AccountId32,
@@ -267,12 +258,37 @@ pub fn new_test_ext(accounts_len: usize) -> (Vec<AccountInfo>, sp_io::TestExtern
 		.collect::<Vec<_>>();
 
 	let balances: Vec<_> = (0..accounts_len)
-		.map(|i| (pairs[i].account_id.clone(), 10_000_000))
+		.map(|i| (pairs[i].account_id.clone(), 1_000_000_000_000_000))
 		.collect();
 
 	pallet_balances::GenesisConfig::<Test> { balances }
 		.assimilate_storage(&mut ext)
 		.unwrap();
+
+	let mut account_pairs = BTreeMap::new();
+	for i in 0..pairs.len() {
+		account_pairs.insert(pairs[i].address.clone(), pairs[i].account_id.clone());
+	}
+
+	let mut accounts = BTreeMap::new();
+	for i in 0..pairs.len() {
+		accounts.insert(
+			pairs[i].address.clone(),
+			fp_evm::GenesisAccount {
+				nonce: U256::default(),
+				balance: U256::from_str("0x1000000000000000000").unwrap(),
+				storage: Default::default(),
+				code: vec![],
+			},
+		);
+	}
+
+	pallet_evm::GenesisConfig::<Test> {
+		account_pairs,
+		accounts,
+	}
+	.assimilate_storage(&mut ext)
+	.expect("Pallet evm storage can be assimilated");
 
 	(pairs, ext.into())
 }
@@ -299,6 +315,20 @@ pub fn new_test_ext_with_initial_balance(
 	pallet_balances::GenesisConfig::<Test> { balances }
 		.assimilate_storage(&mut ext)
 		.unwrap();
+
+	let mut account_pairs = BTreeMap::new();
+	for i in 0..pairs.len() {
+		account_pairs.insert(pairs[i].address.clone(), pairs[i].account_id.clone());
+	}
+
+	let accounts = BTreeMap::new();
+
+	pallet_evm::GenesisConfig::<Test> {
+		account_pairs,
+		accounts,
+	}
+	.assimilate_storage(&mut ext)
+	.expect("Pallet evm storage can be assimilated");
 
 	(pairs, ext.into())
 }

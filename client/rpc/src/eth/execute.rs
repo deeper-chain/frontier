@@ -151,7 +151,12 @@ where
 				}
 				amount
 			}
-			None => max_gas_limit,
+			// If gas limit is not specified in the request we either use the multiplier if supported
+			// or fallback to the block gas limit.
+			None => match api.gas_limit_multiplier_support(&id) {
+				Ok(_) => max_gas_limit,
+				_ => block_gas_limit,
+			},
 		};
 
 		let data = data.map(|d| d.0).unwrap_or_default();
@@ -196,7 +201,7 @@ where
 
 					error_on_execution_failure(&info.exit_reason, &info.value)?;
 					Ok(Bytes(info.value))
-				} else if api_version == 4 {
+				} else if api_version <= 6 {
 					// Post-london + access list support
 					let access_list = access_list.unwrap_or_default();
 					let info = api
@@ -273,7 +278,7 @@ where
 						.account_code_at(&id, info.value)
 						.map_err(|err| internal_err(format!("runtime error: {:?}", err)))?;
 					Ok(Bytes(code))
-				} else if api_version == 4 {
+				} else if api_version <= 6 {
 					// Post-london + access list support
 					let access_list = access_list.unwrap_or_default();
 					let info = api
@@ -367,6 +372,8 @@ where
 
 		let max_gas_limit = block_gas_limit * self.execute_gas_limit_multiplier;
 
+		let api = client.runtime_api();
+
 		// Determine the highest possible gas limits
 		let mut highest = match request.gas {
 			Some(amount) => {
@@ -378,10 +385,13 @@ where
 				}
 				amount
 			}
-			None => max_gas_limit,
+			// If gas limit is not specified in the request we either use the multiplier if supported
+			// or fallback to the block gas limit.
+			None => match api.gas_limit_multiplier_support(&BlockId::Hash(best_hash)) {
+				Ok(_) => max_gas_limit,
+				_ => block_gas_limit,
+			},
 		};
-
-		let api = client.runtime_api();
 
 		// Recap the highest gas allowance with account's balance.
 		if let Some(from) = request.from {
