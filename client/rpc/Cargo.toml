@@ -60,7 +60,7 @@ sha3 = "0.10"
 [dev-dependencies]
 tempfile = "3.3.0"
 # Substrate
-beefy-primitives = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
+sp-beefy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
 sc-block-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
 sc-client-db = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
 sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
