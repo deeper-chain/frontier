@@ -19,8 +19,8 @@ serde_json = "1.0"
 ethereum-types = "0.14.0"
 
 # Substrate
-sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34", features = ["wasmtime"] }
-sc-service = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34", features = ["wasmtime"] }
+sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34"}
+sc-service = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34"}
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
 sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }

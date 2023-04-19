@@ -23,18 +23,18 @@ jsonrpsee = { version = "0.15.1", features = ["server", "macros"] }
 
 # Substrate
 sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
-sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34", features = ["wasmtime"] }
+sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34"}
 sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
 sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
 sc-consensus-aura = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34", optional = true }
 sc-consensus-manual-seal = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34", optional = true }
-sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34", features = ["wasmtime"] }
+sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34"}
 sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
 sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
 sc-network = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
 sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
-sc-service = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34", features = ["wasmtime"] }
+sc-service = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34"}
 sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
 sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
 sc-transaction-pool-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.34" }
