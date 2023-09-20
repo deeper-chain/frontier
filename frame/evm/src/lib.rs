@@ -87,13 +87,18 @@ use frame_support::{
 	weights::Weight,
 };
 use frame_system::RawOrigin;
-use sp_core::{H160, H256, U256};
+use sp_core::{ecdsa, H160, H256, U256};
 use sp_runtime::{
 	traits::{BadOrigin, NumberFor, Saturating, UniqueSaturatedInto, Zero},
 	AccountId32, DispatchErrorWithPostInfo,
 };
 use sp_std::{cmp::min, collections::btree_map::BTreeMap, vec::Vec};
 // Frontier
+pub use self::{
+	pallet::*,
+	runner::{Runner, RunnerError},
+	weights::WeightInfo,
+};
 use fp_account::AccountId20;
 use fp_evm::GenesisAccount;
 pub use fp_evm::{
@@ -101,17 +106,15 @@ pub use fp_evm::{
 	IsPrecompileResult, LinearCostPrecompile, Log, Precompile, PrecompileFailure, PrecompileHandle,
 	PrecompileOutput, PrecompileResult, PrecompileSet, TransactionValidationError, Vicinity,
 };
+use frame_support::pallet_prelude::*;
 
-pub use self::{
-	pallet::*,
-	runner::{Runner, RunnerError},
-	weights::WeightInfo,
-};
+use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};
+pub type EcdsaSignature = ecdsa::Signature;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::pallet_prelude::*;
+
 	use frame_system::pallet_prelude::*;
 
 	#[pallet::pallet]
@@ -453,6 +456,94 @@ pub mod pallet {
 				pays_fee: Pays::No,
 			})
 		}
+
+		#[pallet::call_index(4)]
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(4,2).ref_time())]
+		pub fn pair_accounts(
+			origin: OriginFor<T>,
+			eth_address: H160,
+			eth_signature: EcdsaSignature,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			// ensure account_id and eth_address have NOT been mapped
+			ensure!(
+				!EthAddresses::<T>::contains_key(&who),
+				Error::<T>::AccountIdHasMapped
+			);
+			ensure!(
+				!Accounts::<T>::contains_key(eth_address),
+				Error::<T>::EthAddressHasMapped
+			);
+
+			// recover evm address from signature
+			let address =
+				Self::eth_recover(&eth_signature, &who.using_encoded(to_ascii_hex), &[][..])
+					.ok_or(Error::<T>::BadSignature)?;
+			ensure!(eth_address == address, Error::<T>::InvalidSignature);
+
+			// check if the evm padded address already exists
+			let account_id = T::AddressMapping::into_account_id(eth_address);
+			if frame_system::Pallet::<T>::account_exists(&account_id) {
+				let free_balance = T::Currency::free_balance(&account_id);
+				T::Currency::transfer(
+					&account_id,
+					&who,
+					free_balance,
+					ExistenceRequirement::AllowDeath,
+				)?;
+			}
+
+			Accounts::<T>::insert(eth_address, &who);
+			EthAddresses::<T>::insert(&who, address);
+
+			Self::deposit_event(Event::PairedAccounts {
+				substrate_address: who,
+				eth_address,
+			});
+			Ok(().into())
+		}
+
+		// Mapped address, cannot get control of the mapped deper_address. Used only as a reward address
+		#[pallet::call_index(5)]
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,4).ref_time())]
+		pub fn reward_mapping(
+			origin: OriginFor<T>,
+			eth_address: H160,
+		) -> DispatchResultWithPostInfo {
+			let deeper_address = ensure_signed(origin)?;
+
+			ensure!(
+				!RewardsAccountsEVMtoDeeper::<T>::contains_key(eth_address),
+				Error::<T>::EthAddressAlreadyMapped
+			);
+
+			if RewardsAccountsDeepertoEVM::<T>::contains_key(&deeper_address) {
+				let evm_old_address = Self::rewards_accounts_deeper_evm(&deeper_address)
+					.ok_or(Error::<T>::NotBound)?;
+				if eth_address != evm_old_address {
+					RewardsAccountsEVMtoDeeper::<T>::remove(eth_address);
+					RewardsAccountsDeepertoEVM::<T>::remove(&deeper_address);
+
+					RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_address);
+					RewardsAccountsDeepertoEVM::<T>::insert(&deeper_address, eth_address);
+					Self::deposit_event(Event::RewardsAccountsSwitch {
+						substrate_address: deeper_address,
+						eth_address_old: evm_old_address,
+						eth_address_new: eth_address,
+					});
+				}
+			} else {
+				RewardsAccountsEVMtoDeeper::<T>::insert(eth_address, &deeper_address);
+				RewardsAccountsDeepertoEVM::<T>::insert(&deeper_address, eth_address);
+
+				Self::deposit_event(Event::RewardsAccounts {
+					substrate_address: deeper_address,
+					eth_address,
+				});
+			}
+			Ok(().into())
+		}
 	}
 
 	#[pallet::event]
@@ -468,6 +559,27 @@ pub mod pallet {
 		Executed { address: H160 },
 		/// A contract has been executed with errors. States are reverted with only gas fees applied.
 		ExecutedFailed { address: H160 },
+		/// Mapping between Substrate accounts and Eth accounts
+		PairedAccounts {
+			substrate_address: T::AccountId,
+			eth_address: H160,
+		},
+		/// Mapping between Substrate accounts and Multi Eth accounts
+		DevicePairedAccounts {
+			substrate_address: T::AccountId,
+			eth_address: H160,
+		},
+		/// Bind worker eth_address to reward address
+		RewardsAccounts {
+			substrate_address: T::AccountId,
+			eth_address: H160,
+		},
+		/// Switch Bind worker eth_address to reward address
+		RewardsAccountsSwitch {
+			substrate_address: T::AccountId,
+			eth_address_old: H160,
+			eth_address_new: H160,
+		},
 	}
 
 	#[pallet::error]
@@ -494,6 +606,18 @@ pub mod pallet {
 		Reentrancy,
 		/// EIP-3607,
 		TransactionMustComeFromEOA,
+		/// AccountId has mapped
+		AccountIdHasMapped,
+		/// Eth address has mapped
+		EthAddressHasMapped,
+		/// Bad signature
+		BadSignature,
+		/// Invalid signature
+		InvalidSignature,
+		/// ETH addresses are already bound
+		EthAddressAlreadyMapped,
+		/// No binding information
+		NotBound,
 	}
 
 	impl<T> From<TransactionValidationError> for Error<T> {
@@ -561,6 +685,28 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type AccountStorages<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, H160, Blake2_128Concat, H256, H256, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn accounts)]
+	pub type Accounts<T: Config> = StorageMap<_, Blake2_128Concat, H160, T::AccountId, OptionQuery>;
+
+	/// Deeper Accounts Rewarded by NPoW(Evm_Address => Deeper_Address)
+	#[pallet::storage]
+	#[pallet::getter(fn rewards_accounts_evm_deeper)]
+	pub type RewardsAccountsEVMtoDeeper<T: Config> =
+		StorageMap<_, Blake2_128Concat, H160, T::AccountId, OptionQuery>;
+
+	/// AccountId => Eth Address
+	#[pallet::storage]
+	#[pallet::getter(fn eth_addresses)]
+	pub type EthAddresses<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, H160, ValueQuery>;
+
+	/// Deeper Accounts Rewarded by NPoW(Deeper_Address => Evm_Address)
+	#[pallet::storage]
+	#[pallet::getter(fn rewards_accounts_deeper_evm)]
+	pub type RewardsAccountsDeepertoEVM<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, H160, OptionQuery>;
 }
 
 /// Type alias for currency balance.
@@ -681,6 +827,30 @@ where
 	}
 }
 
+pub struct EnsureAddressMapping<T>(sp_std::marker::PhantomData<T>);
+
+impl<OuterOrigin, T> EnsureAddressOrigin<OuterOrigin> for EnsureAddressMapping<T>
+where
+	OuterOrigin: Into<Result<RawOrigin<T::AccountId>, OuterOrigin>> + From<RawOrigin<T::AccountId>>,
+	T : Config,
+{
+	type Success = ();
+
+	fn try_address_origin(address: &H160, origin: OuterOrigin) -> Result<(), OuterOrigin> {
+		origin.into().and_then(|o| match o.clone() {
+			RawOrigin::Signed(who) => {
+				if let Some(acct) = Accounts::<T>::get(address) {
+					if acct == who {
+						return Ok(());
+					}
+				}
+				Err(OuterOrigin::from(o))
+			},
+			r => Err(OuterOrigin::from(r)),
+		})
+	}
+}
+
 /// Ensure that the address is AccountId20.
 pub struct EnsureAccountId20;
 
@@ -700,8 +870,8 @@ where
 }
 
 /// Trait to be implemented for evm address mapping.
-pub trait AddressMapping<A> {
-	fn into_account_id(address: H160) -> A;
+pub trait AddressMapping<AccountId> {
+	fn into_account_id(address: H160) -> AccountId;
 }
 
 /// Identity address mapping.
@@ -711,6 +881,44 @@ impl<T: From<H160>> AddressMapping<T> for IdentityAddressMapping {
 	fn into_account_id(address: H160) -> T {
 		address.into()
 	}
+}
+
+pub struct PairedAddressMapping<T>(sp_std::marker::PhantomData<T>);
+
+impl<T: Config> AddressMapping<T::AccountId> for PairedAddressMapping<T>
+where
+	T::AccountId: IsType<AccountId32>,
+{
+	fn into_account_id(address: H160) -> T::AccountId {
+		if let Some(acct) = Accounts::<T>::get(address) {
+			return acct;
+		}
+		let mut data: [u8; 32] = [0u8; 32];
+		data[0..4].copy_from_slice(b"evm:");
+		data[4..24].copy_from_slice(&address[..]);
+		AccountId32::from(data).into()
+	}
+
+	// fn ensure_address_origin(address: &H160, origin: &T::AccountId) -> Result<(), DispatchError> {
+	//    if let Some(acct) = Accounts::<T>::get(address) {
+	// 	  if acct == *origin {
+	// 		 return Ok(());
+	// 	  }
+	//    }
+	//    Err(DispatchError::Other(
+	// 	  "eth and substrate addresses are not paired",
+	//    ))
+	// }
+}
+
+pub fn to_ascii_hex(data: &[u8]) -> Vec<u8> {
+	let mut r = Vec::with_capacity(data.len() * 2);
+	let mut push_nibble = |n| r.push(if n < 10 { b'0' + n } else { b'a' - 10 + n });
+	for &b in data.iter() {
+		push_nibble(b / 16);
+		push_nibble(b % 16);
+	}
+	r
 }
 
 /// Hashed address mapping.
@@ -775,6 +983,54 @@ impl<T: Config> GasWeightMapping for FixedGasWeightMapping<T> {
 static SHANGHAI_CONFIG: EvmConfig = EvmConfig::shanghai();
 
 impl<T: Config> Pallet<T> {
+	// Constructs the message that Ethereum RPC's `personal_sign` and `eth_sign`
+	// would sign.
+	pub fn ethereum_signable_message(what: &[u8], extra: &[u8]) -> Vec<u8> {
+		let prefix = b"deeper evm:";
+		let mut l = prefix.len() + what.len() + extra.len();
+		let mut rev = Vec::new();
+		while l > 0 {
+			rev.push(b'0' + (l % 10) as u8);
+			l /= 10;
+		}
+		let mut v = b"\x19Ethereum Signed Message:\n".to_vec();
+		v.extend(rev.into_iter().rev());
+		v.extend_from_slice(&prefix[..]);
+		v.extend_from_slice(what);
+		v.extend_from_slice(extra);
+		v
+	}
+
+	// Attempts to recover the Ethereum address from a message signature signed by
+	// using the Ethereum RPC's `personal_sign` and `eth_sign`.
+	pub fn eth_recover(s: &EcdsaSignature, what: &[u8], extra: &[u8]) -> Option<H160> {
+		let msg = keccak_256(&Self::ethereum_signable_message(what, extra));
+		let mut res = H160::default();
+		res.0
+			.copy_from_slice(&keccak_256(&secp256k1_ecdsa_recover(&s.0, &msg).ok()?[..])[12..]);
+		Some(res)
+	}
+
+	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
+	// Returns an Etherum public key derived from an Ethereum secret key.
+	pub fn eth_public(secret: &libsecp256k1::SecretKey) -> libsecp256k1::PublicKey {
+		libsecp256k1::PublicKey::from_secret_key(secret)
+	}
+
+	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
+	// Constructs a message and signs it.
+	pub fn eth_sign(secret: &libsecp256k1::SecretKey, what: &[u8], extra: &[u8]) -> EcdsaSignature {
+		let msg = keccak_256(&Self::ethereum_signable_message(
+			&to_ascii_hex(what)[..],
+			extra,
+		));
+		let (sig, recovery_id) = libsecp256k1::sign(&libsecp256k1::Message::parse(&msg), secret);
+		let mut r = [0u8; 65];
+		r[0..64].copy_from_slice(&sig.serialize()[..]);
+		r[64] = recovery_id.serialize();
+		EcdsaSignature::from_slice(&r).unwrap()
+	}
+
 	/// Check whether an account is empty.
 	pub fn is_account_empty(address: &H160) -> bool {
 		let (account, _) = Self::account_basic(address);
