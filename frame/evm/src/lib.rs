@@ -832,20 +832,23 @@ pub struct EnsureAddressMapping<T>(sp_std::marker::PhantomData<T>);
 impl<OuterOrigin, T> EnsureAddressOrigin<OuterOrigin> for EnsureAddressMapping<T>
 where
 	OuterOrigin: Into<Result<RawOrigin<T::AccountId>, OuterOrigin>> + From<RawOrigin<T::AccountId>>,
-	T : Config,
+	T: Config,
 {
-	type Success = ();
+	type Success = T::AccountId;
 
-	fn try_address_origin(address: &H160, origin: OuterOrigin) -> Result<(), OuterOrigin> {
+	fn try_address_origin(
+		address: &H160,
+		origin: OuterOrigin,
+	) -> Result<T::AccountId, OuterOrigin> {
 		origin.into().and_then(|o| match o.clone() {
 			RawOrigin::Signed(who) => {
 				if let Some(acct) = Accounts::<T>::get(address) {
 					if acct == who {
-						return Ok(());
+						return Ok(acct);
 					}
 				}
 				Err(OuterOrigin::from(o))
-			},
+			}
 			r => Err(OuterOrigin::from(r)),
 		})
 	}
