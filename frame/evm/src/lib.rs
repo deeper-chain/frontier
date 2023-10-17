@@ -638,10 +638,9 @@ pub mod pallet {
 
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
-	pub struct GenesisConfig<T> {
+	pub struct GenesisConfig<T:Config> {
 		pub accounts: BTreeMap<H160, GenesisAccount>,
-		#[serde(skip)]
-		pub _marker: PhantomData<T>,
+		pub account_pairs: BTreeMap<H160, T::AccountId>,
 	}
 
 	#[pallet::genesis_build]
@@ -651,6 +650,11 @@ pub mod pallet {
 	{
 		fn build(&self) {
 			const MAX_ACCOUNT_NONCE: usize = 100;
+
+			for (eth_addr, account_id) in &self.account_pairs {
+				<Accounts<T>>::insert(eth_addr, account_id);
+				<EthAddresses<T>>::insert(account_id, eth_addr);
+			}
 
 			for (address, account) in &self.accounts {
 				let account_id = T::AddressMapping::into_account_id(*address);
