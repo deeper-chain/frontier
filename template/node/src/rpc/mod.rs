@@ -17,7 +17,6 @@ use sc_service::TransactionPool;
 use sc_transaction_pool::ChainApi;
 use sp_api::{CallApiAt, ProvideRuntimeApi};
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_inherents::CreateInherentDataProviders;
 use sp_runtime::traits::Block as BlockT;
 // Runtime
@@ -65,7 +64,7 @@ pub fn create_full<C, P, BE, A, CT, CIDP>(
 where
 	C: CallApiAt<Block> + ProvideRuntimeApi<Block>,
 	C::Api: sp_block_builder::BlockBuilder<Block>,
-	C::Api: sp_consensus_aura::AuraApi<Block, AuraId>,
+	C::Api: sp_consensus_babe::BabeApi<Block>,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: fp_rpc::ConvertTransactionRuntimeApi<Block>,

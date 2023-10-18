@@ -80,7 +80,7 @@ pub fn create_eth<B, C, BE, P, A, CT, CIDP, EC>(
 where
 	B: BlockT<Hash = H256>,
 	C: CallApiAt<B> + ProvideRuntimeApi<B>,
-	C::Api: AuraApi<B, AuraId>
+	C::Api: BabeApi<B>
 		+ BlockBuilderApi<B>
 		+ ConvertTransactionRuntimeApi<B>
 		+ EthereumRuntimeRPCApi<B>,
