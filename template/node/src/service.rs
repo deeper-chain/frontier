@@ -365,7 +365,6 @@ pub async fn new_full(
 				client: client.clone(),
 				pool: pool.clone(),
 				deny_unsafe,
-				command_sink:None,
 				eth: eth_deps,
 			};
 			crate::rpc::create_full(

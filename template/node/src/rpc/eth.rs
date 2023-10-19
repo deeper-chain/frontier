@@ -94,7 +94,7 @@ where
 	EC: EthConfig<B, C>,
 {
 	use fc_rpc::{
-		pending::AuraConsensusDataProvider, Eth, EthApiServer, EthDevSigner, EthFilter,
+		 Eth, EthApiServer, EthDevSigner, EthFilter,
 		EthFilterApiServer, EthPubSub, EthPubSubApiServer, EthSigner, Net, NetApiServer, Web3,
 		Web3ApiServer,
 	};
