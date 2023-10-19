@@ -65,7 +65,7 @@ pub fn create_full<C, P, BE, A, CT, CIDP>(
 where
 	C: CallApiAt<Block> + ProvideRuntimeApi<Block>,
 	C::Api: sp_block_builder::BlockBuilder<Block>,
-	C::Api: sp_consensus_aura::AuraApi<Block, AuraId>,
+	C::Api: sp_consensus_babe::BabeApi<Block>,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: fp_rpc::ConvertTransactionRuntimeApi<Block>,

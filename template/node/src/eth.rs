@@ -19,7 +19,7 @@ pub use fc_rpc_core::types::{FeeHistoryCache, FeeHistoryCacheLimit, FilterPool};
 // Local
 use frontier_template_runtime::opaque::Block;
 
-use crate::client::{FullBackend, FullClient};
+use crate::client::{FullBackend, Client};
 
 /// Frontier DB backend type.
 pub type FrontierBackend = fc_db::Backend<Block>;
@@ -122,9 +122,9 @@ impl<Api> EthCompatRuntimeApiCollection for Api where
 {
 }
 
-pub async fn spawn_frontier_tasks<RuntimeApi, Executor>(
+pub async fn spawn_frontier_tasks(
 	task_manager: &TaskManager,
-	client: Arc<FullClient<RuntimeApi, Executor>>,
+	client: Arc<Client>,
 	backend: Arc<FullBackend>,
 	frontier_backend: FrontierBackend,
 	filter_pool: Option<FilterPool>,
@@ -137,11 +137,7 @@ pub async fn spawn_frontier_tasks<RuntimeApi, Executor>(
 			fc_mapping_sync::EthereumBlockNotification<Block>,
 		>,
 	>,
-) where
-	RuntimeApi: ConstructRuntimeApi<Block, FullClient<RuntimeApi, Executor>>,
-	RuntimeApi: Send + Sync + 'static,
-	RuntimeApi::RuntimeApi: EthCompatRuntimeApiCollection,
-	Executor: NativeExecutionDispatch + 'static,
+)
 {
 	// Spawn main mapping sync worker background task.
 	match frontier_backend {

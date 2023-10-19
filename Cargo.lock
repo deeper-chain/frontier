@@ -3232,8 +3232,10 @@ dependencies = [
  "sc-client-api",
  "sc-consensus",
  "sc-consensus-aura",
+ "sc-consensus-babe",
  "sc-consensus-grandpa",
  "sc-consensus-manual-seal",
+ "sc-consensus-slots",
  "sc-executor",
  "sc-network",
  "sc-network-sync",
@@ -3249,6 +3251,7 @@ dependencies = [
  "sp-block-builder",
  "sp-blockchain",
  "sp-consensus-aura",
+ "sp-consensus-babe",
  "sp-consensus-grandpa",
  "sp-core",
  "sp-inherents",
@@ -3258,6 +3261,7 @@ dependencies = [
  "sp-state-machine",
  "sp-timestamp",
  "sp-transaction-pool",
+ "sp-transaction-storage-proof",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
@@ -3277,7 +3281,7 @@ dependencies = [
  "frame-system",
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
- "pallet-aura",
+ "pallet-babe",
  "pallet-balances",
  "pallet-base-fee",
  "pallet-dynamic-fee",
@@ -3297,7 +3301,7 @@ dependencies = [
  "scale-info",
  "sp-api",
  "sp-block-builder",
- "sp-consensus-aura",
+ "sp-consensus-babe",
  "sp-core",
  "sp-inherents",
  "sp-offchain",
@@ -5669,23 +5673,6 @@ dependencies = [
  "ecdsa 0.14.8",
  "elliptic-curve 0.12.3",
  "sha2 0.10.7",
-]
-
-[[package]]
-name = "pallet-aura"
-version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-v1.1.0#f60318f68687e601c47de5ad5ca88e2c3f8139a7"
-dependencies = [
- "frame-support",
- "frame-system",
- "log",
- "pallet-timestamp",
- "parity-scale-codec",
- "scale-info",
- "sp-application-crypto",
- "sp-consensus-aura",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]

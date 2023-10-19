@@ -18,7 +18,7 @@ scale-info = { workspace = true }
 # Substrate
 sp-api = { workspace = true }
 sp-block-builder = { workspace = true }
-sp-consensus-aura = { workspace = true }
+sp-consensus-babe = { workspace = true }
 sp-core = { workspace = true }
 sp-inherents = { workspace = true }
 sp-offchain = { workspace = true }
@@ -34,13 +34,16 @@ frame-support = { workspace = true }
 frame-system = { workspace = true }
 frame-system-benchmarking = { workspace = true, optional = true }
 frame-system-rpc-runtime-api = { workspace = true }
-pallet-aura = { workspace = true }
+pallet-babe = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-grandpa = { workspace = true }
 pallet-sudo = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
+
+#added
+
 
 # Frontier
 fp-account = { workspace = true, features = ["serde"] }
@@ -71,7 +74,7 @@ std = [
 	# Substrate
 	"sp-api/std",
 	"sp-block-builder/std",
-	"sp-consensus-aura/std",
+	"sp-consensus-babe/std",
 	"sp-core/std",
 	"sp-inherents/std",
 	"sp-offchain/std",
@@ -88,7 +91,7 @@ std = [
 	"frame-system/std",
 	"frame-system-rpc-runtime-api/std",
 	"frame-system-benchmarking?/std",
-	"pallet-aura/std",
+	"pallet-babe/std",
 	"pallet-balances/std",
 	"pallet-grandpa/std",
 	"pallet-sudo/std",

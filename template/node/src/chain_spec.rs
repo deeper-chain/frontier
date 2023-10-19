@@ -181,7 +181,7 @@ fn testnet_genesis(
 	chain_id: u64,
 ) -> RuntimeGenesisConfig {
 	use frontier_template_runtime::{
-		AuraConfig, BalancesConfig, EVMChainIdConfig, EVMConfig, GrandpaConfig, SudoConfig,
+		BabeConfig, BalancesConfig, EVMChainIdConfig, EVMConfig, GrandpaConfig, SudoConfig,
 		SystemConfig,
 	};
 
@@ -208,9 +208,7 @@ fn testnet_genesis(
 		transaction_payment: Default::default(),
 
 		// Consensus
-		aura: AuraConfig {
-			authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
-		},
+		babe: Default::default(),
 		grandpa: GrandpaConfig {
 			authorities: initial_authorities
 				.iter()

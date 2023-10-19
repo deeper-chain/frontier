@@ -30,6 +30,7 @@ sc-cli = { workspace = true }
 sc-client-api = { workspace = true }
 sc-consensus = { workspace = true }
 sc-consensus-aura = { workspace = true }
+sc-consensus-babe = { workspace = true }
 sc-consensus-grandpa = { workspace = true }
 sc-consensus-manual-seal = { workspace = true }
 sc-executor = { workspace = true }
@@ -46,6 +47,7 @@ sp-api = { workspace = true, features = ["default"] }
 sp-block-builder = { workspace = true }
 sp-blockchain = { workspace = true }
 sp-consensus-aura = { workspace = true, features = ["default"] }
+sp-consensus-babe = { workspace = true, features = ["default"] }
 sp-consensus-grandpa = { workspace = true, features = ["default"] }
 sp-core = { workspace = true, features = ["default"] }
 sp-inherents = { workspace = true, features = ["default"] }
@@ -80,6 +82,12 @@ fp-dynamic-fee = { workspace = true, features = ["default"] }
 fp-evm = { workspace = true, features = ["default"] }
 fp-rpc = { workspace = true, features = ["default"] }
 frontier-template-runtime = { workspace = true, features = ["std"] }
+
+# added
+sp-transaction-storage-proof = {git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.1.0", default-features = false}
+sc-consensus-slots = {git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.1.0", default-features = false}
+
+
 
 [build-dependencies]
 substrate-build-script-utils = { workspace = true }
