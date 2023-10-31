@@ -638,7 +638,7 @@ pub mod pallet {
 
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
-	pub struct GenesisConfig<T:Config> {
+	pub struct GenesisConfig<T: Config> {
 		pub accounts: BTreeMap<H160, GenesisAccount>,
 		pub account_pairs: BTreeMap<H160, T::AccountId>,
 	}
@@ -1311,5 +1311,20 @@ impl<T> OnCreate<T> for Tuple {
 		for_tuples!(#(
 			Tuple::on_create(owner, contract);
 		)*)
+	}
+}
+
+pub trait NpowAddressMapping<AccountId> {
+	fn evm_to_deeper(address: H160) -> Option<AccountId>;
+	fn deeper_to_evm(address: AccountId) -> Option<H160>;
+}
+
+impl<T: Config> NpowAddressMapping<T::AccountId> for Pallet<T> {
+	fn evm_to_deeper(address: H160) -> Option<T::AccountId> {
+		Self::rewards_accounts_evm_deeper(address)
+	}
+
+	fn deeper_to_evm(address: T::AccountId) -> Option<H160> {
+		Self::rewards_accounts_deeper_evm(address)
 	}
 }
