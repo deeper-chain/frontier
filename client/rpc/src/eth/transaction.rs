@@ -1,18 +1,18 @@
-// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 // This file is part of Frontier.
-//
-// Copyright (c) 2022 Parity Technologies (UK) Ltd.
-//
+
+// Copyright (C) Parity Technologies (UK) Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-//
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-//
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
@@ -34,7 +34,7 @@ use fc_rpc_core::types::*;
 use fp_rpc::EthereumRuntimeRPCApi;
 
 use crate::{
-	eth::{transaction_build, BlockInfo, Eth, EthConfig},
+	eth::{transaction_build, BlockInfo, Eth},
 	frontier_backend_client, internal_err,
 };
 
@@ -46,7 +46,6 @@ where
 	C: HeaderBackend<B> + StorageProvider<B, BE> + 'static,
 	BE: Backend<B> + 'static,
 	A: ChainApi<Block = B>,
-	EC: EthConfig<B, C>,
 {
 	pub async fn transaction_by_hash(&self, hash: H256) -> RpcResult<Option<Transaction>> {
 		let client = Arc::clone(&self.client);
@@ -115,7 +114,7 @@ where
 				for txn in ethereum_transactions {
 					let inner_hash = txn.hash();
 					if hash == inner_hash {
-						return Ok(Some(transaction_build(txn, None, None, None)));
+						return Ok(Some(transaction_build(&txn, None, None, None)));
 					}
 				}
 				// Unknown transaction.
@@ -131,9 +130,9 @@ where
 		} = self.block_info_by_eth_block_hash(eth_block_hash).await?;
 		match (block, statuses) {
 			(Some(block), Some(statuses)) => Ok(Some(transaction_build(
-				block.transactions[index].clone(),
-				Some(block),
-				Some(statuses[index].clone()),
+				&block.transactions[index],
+				Some(&block),
+				Some(&statuses[index]),
 				Some(base_fee),
 			))),
 			_ => Ok(None),
@@ -159,9 +158,9 @@ where
 					(block.transactions.get(index), statuses.get(index))
 				{
 					Ok(Some(transaction_build(
-						transaction.clone(),
-						Some(block),
-						Some(status.clone()),
+						transaction,
+						Some(&block),
+						Some(status),
 						Some(base_fee),
 					)))
 				} else {
@@ -191,9 +190,9 @@ where
 					(block.transactions.get(index), statuses.get(index))
 				{
 					Ok(Some(transaction_build(
-						transaction.clone(),
-						Some(block),
-						Some(status.clone()),
+						transaction,
+						Some(&block),
+						Some(status),
 						Some(base_fee),
 					)))
 				} else {
@@ -288,14 +287,31 @@ where
 				let effective_gas_price = match transaction {
 					EthereumTransaction::Legacy(t) => t.gas_price,
 					EthereumTransaction::EIP2930(t) => t.gas_price,
-					EthereumTransaction::EIP1559(t) => self
-						.client
-						.runtime_api()
-						.gas_price(substrate_hash)
-						.unwrap_or_default()
-						.checked_add(t.max_priority_fee_per_gas)
-						.unwrap_or_else(U256::max_value)
-						.min(t.max_fee_per_gas),
+					EthereumTransaction::EIP1559(t) => {
+						let parent_eth_hash = block.header.parent_hash;
+						let base_fee_block_substrate_hash = if parent_eth_hash.is_zero() {
+							substrate_hash
+						} else {
+							frontier_backend_client::load_hash::<B, C>(
+								self.client.as_ref(),
+								self.backend.as_ref(),
+								parent_eth_hash,
+							)
+							.await
+							.map_err(|err| internal_err(format!("{:?}", err)))?
+							.ok_or(internal_err(
+								"Failed to retrieve substrate parent block hash",
+							))?
+						};
+
+						self.client
+							.runtime_api()
+							.gas_price(base_fee_block_substrate_hash)
+							.unwrap_or_default()
+							.checked_add(t.max_priority_fee_per_gas)
+							.unwrap_or_else(U256::max_value)
+							.min(t.max_fee_per_gas)
+					}
 				};
 
 				return Ok(Some(Receipt {

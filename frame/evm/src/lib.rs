@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
 // This file is part of Frontier.
-//
-// Copyright (c) 2020-2022 Parity Technologies (UK) Ltd.
-//
+
+// Copyright (C) Parity Technologies (UK) Ltd.
+// SPDX-License-Identifier: Apache-2.0
+
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -55,6 +55,8 @@
 #![warn(unused_crate_dependencies)]
 #![allow(clippy::too_many_arguments)]
 
+extern crate alloc;
+
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 
@@ -65,6 +67,8 @@ pub mod runner;
 mod tests;
 pub mod weights;
 
+use alloc::{collections::btree_map::BTreeMap, vec::Vec};
+use core::cmp::min;
 pub use evm::{
 	Config as EvmConfig, Context, ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed,
 };
@@ -75,30 +79,26 @@ use scale_info::TypeInfo;
 // Substrate
 use frame_support::{
 	dispatch::{DispatchResultWithPostInfo, Pays, PostDispatchInfo},
+	storage::{child::KillStorageResult, KeyPrefixIterator},
 	traits::{
+		fungible::{Balanced, Credit, Debt},
 		tokens::{
 			currency::Currency,
 			fungible::Inspect,
 			imbalance::{Imbalance, OnUnbalanced, SignedImbalance},
-			ExistenceRequirement, Fortitude, Preservation, WithdrawReasons,
+			ExistenceRequirement, Fortitude, Precision, Preservation, WithdrawReasons,
 		},
 		FindAuthor, Get, Time,
 	},
 	weights::Weight,
 };
 use frame_system::RawOrigin;
-use sp_core::{ecdsa, H160, H256, U256};
+use sp_core::{ecdsa, ByteArray, H160, H256, U256};
 use sp_runtime::{
 	traits::{BadOrigin, NumberFor, Saturating, UniqueSaturatedInto, Zero},
 	AccountId32, DispatchErrorWithPostInfo,
 };
-use sp_std::{cmp::min, collections::btree_map::BTreeMap, vec::Vec};
 // Frontier
-pub use self::{
-	pallet::*,
-	runner::{Runner, RunnerError},
-	weights::WeightInfo,
-};
 use fp_account::AccountId20;
 use fp_evm::GenesisAccount;
 pub use fp_evm::{
@@ -106,15 +106,19 @@ pub use fp_evm::{
 	IsPrecompileResult, LinearCostPrecompile, Log, Precompile, PrecompileFailure, PrecompileHandle,
 	PrecompileOutput, PrecompileResult, PrecompileSet, TransactionValidationError, Vicinity,
 };
+
+pub use self::{
+	pallet::*,
+	runner::{Runner, RunnerError},
+	weights::WeightInfo,
+};
 use frame_support::pallet_prelude::*;
 
-use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};
 pub type EcdsaSignature = ecdsa::Signature;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-
 	use frame_system::pallet_prelude::*;
 
 	#[pallet::pallet]
@@ -170,6 +174,9 @@ pub mod pallet {
 
 		/// Gas limit Pov size ratio.
 		type GasLimitPovSizeRatio: Get<u64>;
+
+		/// Define the quick clear limit of storage clearing when a contract suicides. Set to 0 to disable it.
+		type SuicideQuickClearLimit: Get<u32>;
 
 		/// Get the timestamp for the current block.
 		type Timestamp: Time;
@@ -484,7 +491,7 @@ pub mod pallet {
 
 			// check if the evm padded address already exists
 			let account_id = T::AddressMapping::into_account_id(eth_address);
-			if frame_system::Pallet::<T>::account_exists(&account_id) {
+			if Pallet::<T>::is_account_empty(&address) {
 				let free_balance = T::Currency::free_balance(&account_id);
 				T::Currency::transfer(
 					&account_id,
@@ -600,12 +607,14 @@ pub mod pallet {
 		GasLimitTooLow,
 		/// Gas limit is too high.
 		GasLimitTooHigh,
-		/// Undefined error.
-		Undefined,
+		/// The chain id is invalid.
+		InvalidChainId,
 		/// EVM reentrancy
 		Reentrancy,
 		/// EIP-3607,
 		TransactionMustComeFromEOA,
+		/// Undefined error.
+		Undefined,
 		/// AccountId has mapped
 		AccountIdHasMapped,
 		/// Eth address has mapped
@@ -631,7 +640,9 @@ pub mod pallet {
 				TransactionValidationError::GasPriceTooLow => Error::<T>::GasPriceTooLow,
 				TransactionValidationError::PriorityFeeTooHigh => Error::<T>::GasPriceTooLow,
 				TransactionValidationError::InvalidFeeInput => Error::<T>::GasPriceTooLow,
-				_ => Error::<T>::Undefined,
+				TransactionValidationError::InvalidChainId => Error::<T>::InvalidChainId,
+				TransactionValidationError::InvalidSignature => Error::<T>::InvalidSignature,
+				TransactionValidationError::UnknownError => Error::<T>::Undefined,
 			}
 		}
 	}
@@ -641,6 +652,8 @@ pub mod pallet {
 	pub struct GenesisConfig<T: Config> {
 		pub accounts: BTreeMap<H160, GenesisAccount>,
 		pub account_pairs: BTreeMap<H160, T::AccountId>,
+		// #[serde(skip)]
+		// pub _marker: PhantomData<T>,
 	}
 
 	#[pallet::genesis_build]
@@ -668,7 +681,10 @@ pub mod pallet {
 					frame_system::Pallet::<T>::inc_account_nonce(&account_id);
 				}
 
-				T::Currency::deposit_creating(&account_id, account.balance.unique_saturated_into());
+				let _ = T::Currency::deposit_creating(
+					&account_id,
+					account.balance.unique_saturated_into(),
+				);
 
 				Pallet::<T>::create_account(*address, account.code.clone());
 
@@ -689,6 +705,9 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type AccountStorages<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, H160, Blake2_128Concat, H256, H256, ValueQuery>;
+
+	#[pallet::storage]
+	pub type Suicided<T: Config> = StorageMap<_, Blake2_128Concat, H160, (), OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn accounts)]
@@ -784,7 +803,7 @@ where
 }
 
 /// Ensure that the origin is root.
-pub struct EnsureAddressRoot<AccountId>(sp_std::marker::PhantomData<AccountId>);
+pub struct EnsureAddressRoot<AccountId>(core::marker::PhantomData<AccountId>);
 
 impl<OuterOrigin, AccountId> EnsureAddressOrigin<OuterOrigin> for EnsureAddressRoot<AccountId>
 where
@@ -801,7 +820,7 @@ where
 }
 
 /// Ensure that the origin never happens.
-pub struct EnsureAddressNever<AccountId>(sp_std::marker::PhantomData<AccountId>);
+pub struct EnsureAddressNever<AccountId>(core::marker::PhantomData<AccountId>);
 
 impl<OuterOrigin, AccountId> EnsureAddressOrigin<OuterOrigin> for EnsureAddressNever<AccountId> {
 	type Success = AccountId;
@@ -831,33 +850,6 @@ where
 	}
 }
 
-pub struct EnsureAddressMapping<T>(sp_std::marker::PhantomData<T>);
-
-impl<OuterOrigin, T> EnsureAddressOrigin<OuterOrigin> for EnsureAddressMapping<T>
-where
-	OuterOrigin: Into<Result<RawOrigin<T::AccountId>, OuterOrigin>> + From<RawOrigin<T::AccountId>>,
-	T: Config,
-{
-	type Success = T::AccountId;
-
-	fn try_address_origin(
-		address: &H160,
-		origin: OuterOrigin,
-	) -> Result<T::AccountId, OuterOrigin> {
-		origin.into().and_then(|o| match o.clone() {
-			RawOrigin::Signed(who) => {
-				if let Some(acct) = Accounts::<T>::get(address) {
-					if acct == who {
-						return Ok(acct);
-					}
-				}
-				Err(OuterOrigin::from(o))
-			}
-			r => Err(OuterOrigin::from(r)),
-		})
-	}
-}
-
 /// Ensure that the address is AccountId20.
 pub struct EnsureAccountId20;
 
@@ -877,8 +869,8 @@ where
 }
 
 /// Trait to be implemented for evm address mapping.
-pub trait AddressMapping<AccountId> {
-	fn into_account_id(address: H160) -> AccountId;
+pub trait AddressMapping<A> {
+	fn into_account_id(address: H160) -> A;
 }
 
 /// Identity address mapping.
@@ -889,9 +881,7 @@ impl<T: From<H160>> AddressMapping<T> for IdentityAddressMapping {
 		address.into()
 	}
 }
-
-pub struct PairedAddressMapping<T>(sp_std::marker::PhantomData<T>);
-
+pub struct PairedAddressMapping<T>(core::marker::PhantomData<T>);
 impl<T: Config> AddressMapping<T::AccountId> for PairedAddressMapping<T>
 where
 	T::AccountId: IsType<AccountId32>,
@@ -929,7 +919,7 @@ pub fn to_ascii_hex(data: &[u8]) -> Vec<u8> {
 }
 
 /// Hashed address mapping.
-pub struct HashedAddressMapping<H>(sp_std::marker::PhantomData<H>);
+pub struct HashedAddressMapping<H>(core::marker::PhantomData<H>);
 
 impl<H: Hasher<Out = H256>> AddressMapping<AccountId32> for HashedAddressMapping<H> {
 	fn into_account_id(address: H160) -> AccountId32 {
@@ -948,7 +938,7 @@ pub trait BlockHashMapping {
 }
 
 /// Returns the Substrate block hash by number.
-pub struct SubstrateBlockHashMapping<T>(sp_std::marker::PhantomData<T>);
+pub struct SubstrateBlockHashMapping<T>(core::marker::PhantomData<T>);
 impl<T: Config> BlockHashMapping for SubstrateBlockHashMapping<T> {
 	fn block_hash(number: u32) -> H256 {
 		let number = <NumberFor<T::Block>>::from(number);
@@ -962,7 +952,7 @@ pub trait GasWeightMapping {
 	fn weight_to_gas(weight: Weight) -> u64;
 }
 
-pub struct FixedGasWeightMapping<T>(sp_std::marker::PhantomData<T>);
+pub struct FixedGasWeightMapping<T>(core::marker::PhantomData<T>);
 impl<T: Config> GasWeightMapping for FixedGasWeightMapping<T> {
 	fn gas_to_weight(gas: u64, without_base_weight: bool) -> Weight {
 		let mut weight = T::WeightPerGas::get().saturating_mul(gas);
@@ -1011,10 +1001,13 @@ impl<T: Config> Pallet<T> {
 	// Attempts to recover the Ethereum address from a message signature signed by
 	// using the Ethereum RPC's `personal_sign` and `eth_sign`.
 	pub fn eth_recover(s: &EcdsaSignature, what: &[u8], extra: &[u8]) -> Option<H160> {
-		let msg = keccak_256(&Self::ethereum_signable_message(what, extra));
+		let msg = sp_io::hashing::keccak_256(&Self::ethereum_signable_message(what, extra));
 		let mut res = H160::default();
-		res.0
-			.copy_from_slice(&keccak_256(&secp256k1_ecdsa_recover(&s.0, &msg).ok()?[..])[12..]);
+		res.0.copy_from_slice(
+			&sp_io::hashing::keccak_256(
+				&sp_io::crypto::secp256k1_ecdsa_recover(&s.0, &msg).ok()?[..],
+			)[12..],
+		);
 		Some(res)
 	}
 
@@ -1027,7 +1020,7 @@ impl<T: Config> Pallet<T> {
 	#[cfg(any(feature = "runtime-benchmarks", feature = "std"))]
 	// Constructs a message and signs it.
 	pub fn eth_sign(secret: &libsecp256k1::SecretKey, what: &[u8], extra: &[u8]) -> EcdsaSignature {
-		let msg = keccak_256(&Self::ethereum_signable_message(
+		let msg = sp_io::hashing::keccak_256(&Self::ethereum_signable_message(
 			&to_ascii_hex(what)[..],
 			extra,
 		));
@@ -1045,6 +1038,14 @@ impl<T: Config> Pallet<T> {
 
 		account.nonce == U256::zero() && account.balance == U256::zero() && code_len == 0
 	}
+	/// Check whether an account is a suicided contract
+	pub fn is_account_suicided(address: &H160) -> bool {
+		<Suicided<T>>::contains_key(address)
+	}
+
+	pub fn iter_account_storages(address: &H160) -> KeyPrefixIterator<H256> {
+		<AccountStorages<T>>::iter_key_prefix(address)
+	}
 
 	/// Remove an account if its empty.
 	pub fn remove_account_if_empty(address: &H160) {
@@ -1056,18 +1057,44 @@ impl<T: Config> Pallet<T> {
 	/// Remove an account.
 	pub fn remove_account(address: &H160) {
 		if <AccountCodes<T>>::contains_key(address) {
+			// Remember to call `dec_sufficients` when clearing Suicided.
+			<Suicided<T>>::insert(address, ());
+
+			// In theory, we can always have pre-EIP161 contracts, so we
+			// make sure the account nonce is at least one.
 			let account_id = T::AddressMapping::into_account_id(*address);
-			let _ = frame_system::Pallet::<T>::dec_sufficients(&account_id);
+			frame_system::Pallet::<T>::inc_account_nonce(&account_id);
 		}
 
 		<AccountCodes<T>>::remove(address);
 		<AccountCodesMetadata<T>>::remove(address);
-		#[allow(deprecated)]
-		let _ = <AccountStorages<T>>::remove_prefix(address, None);
+
+		if T::SuicideQuickClearLimit::get() > 0 {
+			#[allow(deprecated)]
+			let res = <AccountStorages<T>>::remove_prefix(address, Some(T::SuicideQuickClearLimit::get()));
+
+			match res {
+				KillStorageResult::AllRemoved(_) => {
+					<Suicided<T>>::remove(address);
+
+					let account_id = T::AddressMapping::into_account_id(*address);
+					let _ = frame_system::Pallet::<T>::dec_sufficients(&account_id);
+				}
+				KillStorageResult::SomeRemaining(_) => (),
+			}
+		}
 	}
 
 	/// Create an account.
 	pub fn create_account(address: H160, code: Vec<u8>) {
+		if <Suicided<T>>::contains_key(address) {
+			// This branch should never trigger, because when Suicided
+			// contains an address, then its nonce will be at least one,
+			// which causes CreateCollision error in EVM, but we add it
+			// here for safeguard.
+			return;
+		}
+
 		if code.is_empty() {
 			return;
 		}
@@ -1114,9 +1141,7 @@ impl<T: Config> Pallet<T> {
 	/// Get the account basic in EVM format.
 	pub fn account_basic(address: &H160) -> (Account, frame_support::weights::Weight) {
 		let account_id = T::AddressMapping::into_account_id(*address);
-
 		let nonce = frame_system::Pallet::<T>::account_nonce(&account_id);
-		// keepalive `true` takes into account ExistentialDeposit as part of what's considered liquid balance.
 		let balance =
 			T::Currency::reducible_balance(&account_id, Preservation::Preserve, Fortitude::Polite);
 
@@ -1167,7 +1192,7 @@ pub trait OnChargeEVMTransaction<T: Config> {
 /// trait (eg. the pallet_balances) using an unbalance handler (implementing
 /// `OnUnbalanced`).
 /// Similar to `CurrencyAdapter` of `pallet_transaction_payment`
-pub struct EVMCurrencyAdapter<C, OU>(sp_std::marker::PhantomData<(C, OU)>);
+pub struct EVMCurrencyAdapter<C, OU>(core::marker::PhantomData<(C, OU)>);
 
 impl<T, C, OU> OnChargeEVMTransaction<T> for EVMCurrencyAdapter<C, OU>
 where
@@ -1261,26 +1286,38 @@ where
 		}
 	}
 }
+/// Implements transaction payment for a pallet implementing the [`fungible`]
+/// trait (eg. pallet_balances) using an unbalance handler (implementing
+/// [`OnUnbalanced`]).
+///
+/// Equivalent of `EVMCurrencyAdapter` but for fungible traits. Similar to `FungibleAdapter` of
+/// `pallet_transaction_payment`
+pub struct EVMFungibleAdapter<F, OU>(core::marker::PhantomData<(F, OU)>);
 
-/// Implementation for () does not specify what to do with imbalance
-impl<T> OnChargeEVMTransaction<T> for ()
-	where
+impl<T, F, OU> OnChargeEVMTransaction<T> for EVMFungibleAdapter<F, OU>
+where
 	T: Config,
-	<T::Currency as Currency<<T as frame_system::Config>::AccountId>>::PositiveImbalance:
-		Imbalance<<T::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance, Opposite = <T::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance>,
-	<T::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance:
-Imbalance<<T::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance, Opposite = <T::Currency as Currency<<T as frame_system::Config>::AccountId>>::PositiveImbalance>,
-U256: UniqueSaturatedInto<BalanceOf<T>>,
-
+	F: Balanced<T::AccountId>,
+	OU: OnUnbalanced<Credit<T::AccountId, F>>,
+	U256: UniqueSaturatedInto<<F as Inspect<<T as frame_system::Config>::AccountId>>::Balance>,
 {
 	// Kept type as Option to satisfy bound of Default
-	type LiquidityInfo = Option<NegativeImbalanceOf<T::Currency, T>>;
+	type LiquidityInfo = Option<Credit<T::AccountId, F>>;
 
-	fn withdraw_fee(
-		who: &H160,
-		fee: U256,
-	) -> Result<Self::LiquidityInfo, Error<T>> {
-		EVMCurrencyAdapter::<<T as Config>::Currency, ()>::withdraw_fee(who, fee)
+	fn withdraw_fee(who: &H160, fee: U256) -> Result<Self::LiquidityInfo, Error<T>> {
+		if fee.is_zero() {
+			return Ok(None);
+		}
+		let account_id = T::AddressMapping::into_account_id(*who);
+		let imbalance = F::withdraw(
+			&account_id,
+			fee.unique_saturated_into(),
+			Precision::Exact,
+			Preservation::Preserve,
+			Fortitude::Polite,
+		)
+		.map_err(|_| Error::<T>::BalanceLow)?;
+		Ok(Some(imbalance))
 	}
 
 	fn correct_and_deposit_fee(
@@ -1289,11 +1326,72 @@ U256: UniqueSaturatedInto<BalanceOf<T>>,
 		base_fee: U256,
 		already_withdrawn: Self::LiquidityInfo,
 	) -> Self::LiquidityInfo {
-		<EVMCurrencyAdapter::<<T as Config>::Currency, ()> as OnChargeEVMTransaction<T>>::correct_and_deposit_fee(who, corrected_fee, base_fee, already_withdrawn)
+		if let Some(paid) = already_withdrawn {
+			let account_id = T::AddressMapping::into_account_id(*who);
+
+			// Calculate how much refund we should return
+			let refund_amount = paid
+				.peek()
+				.saturating_sub(corrected_fee.unique_saturated_into());
+			// refund to the account that paid the fees.
+			let refund_imbalance = F::deposit(&account_id, refund_amount, Precision::BestEffort)
+				.unwrap_or_else(|_| Debt::<T::AccountId, F>::zero());
+
+			// merge the imbalance caused by paying the fees and refunding parts of it again.
+			let adjusted_paid = paid
+				.offset(refund_imbalance)
+				.same()
+				.unwrap_or_else(|_| Credit::<T::AccountId, F>::zero());
+
+			let (base_fee, tip) = adjusted_paid.split(base_fee.unique_saturated_into());
+			// Handle base fee. Can be either burned, rationed, etc ...
+			OU::on_unbalanced(base_fee);
+			return Some(tip);
+		}
+		None
 	}
 
 	fn pay_priority_fee(tip: Self::LiquidityInfo) {
-		<EVMCurrencyAdapter::<<T as Config>::Currency, ()> as OnChargeEVMTransaction<T>>::pay_priority_fee(tip);
+		// Default Ethereum behaviour: issue the tip to the block author.
+		if let Some(tip) = tip {
+			let account_id = T::AddressMapping::into_account_id(<Pallet<T>>::find_author());
+			let _ = F::deposit(&account_id, tip.peek(), Precision::BestEffort);
+		}
+	}
+}
+
+/// Implementation for () does not specify what to do with imbalance
+impl<T> OnChargeEVMTransaction<T> for ()
+where
+	T: Config,
+	T::Currency: Balanced<T::AccountId>,
+	U256: UniqueSaturatedInto<
+		<<T as Config>::Currency as Inspect<<T as frame_system::Config>::AccountId>>::Balance,
+	>,
+{
+	// Kept type as Option to satisfy bound of Default
+	type LiquidityInfo = Option<Credit<T::AccountId, T::Currency>>;
+
+	fn withdraw_fee(who: &H160, fee: U256) -> Result<Self::LiquidityInfo, Error<T>> {
+		EVMFungibleAdapter::<T::Currency, ()>::withdraw_fee(who, fee)
+	}
+
+	fn correct_and_deposit_fee(
+		who: &H160,
+		corrected_fee: U256,
+		base_fee: U256,
+		already_withdrawn: Self::LiquidityInfo,
+	) -> Self::LiquidityInfo {
+		<EVMFungibleAdapter<T::Currency, ()> as OnChargeEVMTransaction<T>>::correct_and_deposit_fee(
+			who,
+			corrected_fee,
+			base_fee,
+			already_withdrawn,
+		)
+	}
+
+	fn pay_priority_fee(tip: Self::LiquidityInfo) {
+		<EVMFungibleAdapter<T::Currency, ()> as OnChargeEVMTransaction<T>>::pay_priority_fee(tip);
 	}
 }
 
@@ -1313,6 +1411,32 @@ impl<T> OnCreate<T> for Tuple {
 		)*)
 	}
 }
+
+/// EVM account provider based on the [`frame_system`] accounts.
+///
+/// Uses standard Substrate accounts system to hold EVM accounts.
+// pub struct FrameSystemAccountProvider<T>(core::marker::PhantomData<T>);
+
+// impl<T: frame_system::Config> AccountProvider for FrameSystemAccountProvider<T> {
+// 	type AccountId = T::AccountId;
+// 	type Nonce = T::Nonce;
+
+// 	fn account_nonce(who: &Self::AccountId) -> Self::Nonce {
+// 		frame_system::Pallet::<T>::account_nonce(who)
+// 	}
+
+// 	fn inc_account_nonce(who: &Self::AccountId) {
+// 		frame_system::Pallet::<T>::inc_account_nonce(who)
+// 	}
+
+// 	fn create_account(who: &Self::AccountId) {
+// 		let _ = frame_system::Pallet::<T>::inc_sufficients(who);
+// 	}
+
+// 	fn remove_account(who: &Self::AccountId) {
+// 		let _ = frame_system::Pallet::<T>::dec_sufficients(who);
+// 	}
+// }
 
 pub trait NpowAddressMapping<AccountId> {
 	fn evm_to_deeper(address: H160) -> Option<AccountId>;

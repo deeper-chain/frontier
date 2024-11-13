@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
 // This file is part of Frontier.
-//
-// Copyright (c) 2020-2022 Parity Technologies (UK) Ltd.
-//
+
+// Copyright (C) Parity Technologies (UK) Ltd.
+// SPDX-License-Identifier: Apache-2.0
+
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -604,7 +604,7 @@ impl Precompile for Bls12377MapG1 {
 
 		let fq = read_fq(input, 0)?;
 		let g1 = match map_to_curve_g1(fq) {
-			Ok(point) => point,
+			Ok(point) => point.clear_cofactor(),
 			Err(_) => {
 				return Err(PrecompileFailure::Error {
 					exit_status: ExitError::Other("map to curve failed".into()),
@@ -635,7 +635,7 @@ impl Precompile for Bls12377MapG2 {
 		handle.record_cost(Bls12377MapG2::GAS_COST)?;
 
 		let input = handle.input();
-		if input.len() != 64 {
+		if input.len() != 128 {
 			return Err(PrecompileFailure::Error {
 				exit_status: ExitError::Other("invalid input length".into()),
 			});
@@ -643,7 +643,7 @@ impl Precompile for Bls12377MapG2 {
 
 		let fq2 = read_fq2(input, 0)?;
 		let g2 = match map_to_curve_g2(fq2) {
-			Ok(point) => point,
+			Ok(point) => point.clear_cofactor(),
 			Err(_) => {
 				return Err(PrecompileFailure::Error {
 					exit_status: ExitError::Other("map to curve failed".into()),

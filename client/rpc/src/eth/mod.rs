@@ -1,23 +1,22 @@
-// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 // This file is part of Frontier.
-//
-// Copyright (c) 2020-2022 Parity Technologies (UK) Ltd.
-//
+
+// Copyright (C) Parity Technologies (UK) Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-//
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-//
+
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 mod block;
-mod cache;
 mod client;
 mod execute;
 mod fee;
@@ -32,7 +31,7 @@ mod transaction;
 use std::{collections::BTreeMap, marker::PhantomData, sync::Arc};
 
 use ethereum::{BlockV2 as EthereumBlock, TransactionV2 as EthereumTransaction};
-use ethereum_types::{H160, H256, H512, H64, U256, U64};
+use ethereum_types::{H160, H256, H64, U256, U64};
 use jsonrpsee::core::{async_trait, RpcResult};
 // Substrate
 use sc_client_api::backend::{Backend, StorageProvider};
@@ -47,19 +46,18 @@ use sp_inherents::CreateInherentDataProviders;
 use sp_runtime::traits::{Block as BlockT, UniqueSaturatedInto};
 // Frontier
 use fc_rpc_core::{types::*, EthApiServer};
-use fc_storage::OverrideHandle;
+use fc_storage::StorageOverride;
 use fp_rpc::{
 	ConvertTransaction, ConvertTransactionRuntimeApi, EthereumRuntimeRPCApi,
 	RuntimeStorageOverride, TransactionStatus,
 };
 
-use crate::{frontier_backend_client, internal_err, public_key, signer::EthSigner};
-
-pub use self::{
-	cache::{EthBlockDataCacheTask, EthTask},
-	execute::EstimateGasAdapter,
-	filter::EthFilter,
+use crate::{
+	cache::EthBlockDataCacheTask, frontier_backend_client, internal_err, public_key,
+	signer::EthSigner,
 };
+
+pub use self::{execute::EstimateGasAdapter, filter::EthFilter};
 
 // Configuration trait for RPC configuration.
 pub trait EthConfig<B: BlockT, C>: Send + Sync + 'static {
@@ -73,7 +71,7 @@ impl<B: BlockT, C> EthConfig<B, C> for () {
 }
 
 /// Eth API implementation.
-pub struct Eth<B: BlockT, C, P, CT, BE, A: ChainApi, CIDP, EC: EthConfig<B, C>> {
+pub struct Eth<B: BlockT, C, P, CT, BE, A: ChainApi, CIDP, EC> {
 	pool: Arc<P>,
 	graph: Arc<Pool<A>>,
 	client: Arc<C>,
@@ -81,7 +79,7 @@ pub struct Eth<B: BlockT, C, P, CT, BE, A: ChainApi, CIDP, EC: EthConfig<B, C>> 
 	sync: Arc<SyncingService<B>>,
 	is_authority: bool,
 	signers: Vec<Box<dyn EthSigner>>,
-	overrides: Arc<OverrideHandle<B>>,
+	storage_override: Arc<dyn StorageOverride<B>>,
 	backend: Arc<dyn fc_api::Backend<B>>,
 	block_data_cache: Arc<EthBlockDataCacheTask<B>>,
 	fee_history_cache: FeeHistoryCache,
@@ -104,7 +102,6 @@ where
 	C: HeaderBackend<B> + StorageProvider<B, BE> + 'static,
 	BE: Backend<B> + 'static,
 	A: ChainApi<Block = B>,
-	EC: EthConfig<B, C>,
 {
 	pub fn new(
 		client: Arc<C>,
@@ -113,7 +110,7 @@ where
 		convert_transaction: Option<CT>,
 		sync: Arc<SyncingService<B>>,
 		signers: Vec<Box<dyn EthSigner>>,
-		overrides: Arc<OverrideHandle<B>>,
+		storage_override: Arc<dyn StorageOverride<B>>,
 		backend: Arc<dyn fc_api::Backend<B>>,
 		is_authority: bool,
 		block_data_cache: Arc<EthBlockDataCacheTask<B>>,
@@ -132,7 +129,7 @@ where
 			sync,
 			is_authority,
 			signers,
-			overrides,
+			storage_override,
 			backend,
 			block_data_cache,
 			fee_history_cache,
@@ -226,23 +223,13 @@ where
 		&self,
 		substrate_hash: B::Hash,
 	) -> RpcResult<BlockInfo<B::Hash>> {
-		let schema = fc_storage::onchain_storage_schema(self.client.as_ref(), substrate_hash);
-		let handler = self
-			.overrides
-			.schemas
-			.get(&schema)
-			.unwrap_or(&self.overrides.fallback);
-
-		let block = self
-			.block_data_cache
-			.current_block(schema, substrate_hash)
-			.await;
-		let receipts = handler.current_receipts(substrate_hash);
+		let block = self.block_data_cache.current_block(substrate_hash).await;
 		let statuses = self
 			.block_data_cache
-			.current_transaction_statuses(schema, substrate_hash)
+			.current_transaction_statuses(substrate_hash)
 			.await;
-		let is_eip1559 = handler.is_eip1559(substrate_hash);
+		let receipts = self.storage_override.current_receipts(substrate_hash);
+		let is_eip1559 = self.storage_override.is_eip1559(substrate_hash);
 		let base_fee = self
 			.client
 			.runtime_api()
@@ -275,7 +262,7 @@ where
 			sync,
 			is_authority,
 			signers,
-			overrides,
+			storage_override,
 			backend,
 			block_data_cache,
 			fee_history_cache,
@@ -295,7 +282,7 @@ where
 			sync,
 			is_authority,
 			signers,
-			overrides,
+			storage_override,
 			backend,
 			block_data_cache,
 			fee_history_cache,
@@ -482,7 +469,7 @@ where
 
 	async fn call(
 		&self,
-		request: CallRequest,
+		request: TransactionRequest,
 		number_or_hash: Option<BlockNumberOrHash>,
 		state_overrides: Option<BTreeMap<H160, CallStateOverride>>,
 	) -> RpcResult<Bytes> {
@@ -491,7 +478,7 @@ where
 
 	async fn estimate_gas(
 		&self,
-		request: CallRequest,
+		request: TransactionRequest,
 		number_or_hash: Option<BlockNumberOrHash>,
 	) -> RpcResult<U256> {
 		self.estimate_gas(request, number_or_hash).await
@@ -606,9 +593,9 @@ fn rich_block_build(
 							.enumerate()
 							.map(|(index, transaction)| {
 								transaction_build(
-									transaction.clone(),
-									Some(block.clone()),
-									Some(statuses[index].clone().unwrap_or_default()),
+									transaction,
+									Some(&block),
+									statuses[index].as_ref(),
 									base_fee,
 								)
 							})
@@ -632,17 +619,30 @@ fn rich_block_build(
 }
 
 fn transaction_build(
-	ethereum_transaction: EthereumTransaction,
-	block: Option<EthereumBlock>,
-	status: Option<TransactionStatus>,
+	ethereum_transaction: &EthereumTransaction,
+	block: Option<&EthereumBlock>,
+	status: Option<&TransactionStatus>,
 	base_fee: Option<U256>,
 ) -> Transaction {
-	let mut transaction: Transaction = ethereum_transaction.clone().into();
+	let pubkey = match public_key(ethereum_transaction) {
+		Ok(p) => Some(p),
+		Err(_) => None,
+	};
+	let from = status.map_or(
+		{
+			match pubkey {
+				Some(pk) => H160::from(H256::from(keccak_256(&pk))),
+				_ => H160::default(),
+			}
+		},
+		|status| status.from,
+	);
+
+	let mut transaction: Transaction = Transaction::build_from(from, ethereum_transaction);
 
 	if let EthereumTransaction::EIP1559(_) = ethereum_transaction {
 		if block.is_none() && status.is_none() {
 			// If transaction is not mined yet, gas price is considered just max fee per gas.
-			transaction.gas_price = transaction.max_fee_per_gas;
 		} else {
 			let base_fee = base_fee.unwrap_or_default();
 			let max_priority_fee_per_gas = transaction.max_priority_fee_per_gas.unwrap_or_default();
@@ -657,52 +657,18 @@ fn transaction_build(
 		}
 	}
 
-	let pubkey = match public_key(&ethereum_transaction) {
-		Ok(p) => Some(p),
-		Err(_e) => None,
-	};
-
 	// Block hash.
-	transaction.block_hash = block
-		.as_ref()
-		.map(|block| H256::from(keccak_256(&rlp::encode(&block.header))));
+	transaction.block_hash = block.map(|block| block.header.hash());
 	// Block number.
-	transaction.block_number = block.as_ref().map(|block| block.header.number);
+	transaction.block_number = block.map(|block| block.header.number);
 	// Transaction index.
-	transaction.transaction_index = status.as_ref().map(|status| {
+	transaction.transaction_index = status.map(|status| {
 		U256::from(UniqueSaturatedInto::<u32>::unique_saturated_into(
 			status.transaction_index,
 		))
 	});
-	// From.
-	transaction.from = status.as_ref().map_or(
-		{
-			match pubkey {
-				Some(pk) => H160::from(H256::from(keccak_256(&pk))),
-				_ => H160::default(),
-			}
-		},
-		|status| status.from,
-	);
-	// To.
-	transaction.to = status.as_ref().map_or(
-		{
-			let action = match ethereum_transaction {
-				EthereumTransaction::Legacy(t) => t.action,
-				EthereumTransaction::EIP2930(t) => t.action,
-				EthereumTransaction::EIP1559(t) => t.action,
-			};
-			match action {
-				ethereum::TransactionAction::Call(to) => Some(to),
-				_ => None,
-			}
-		},
-		|status| status.to,
-	);
 	// Creates.
-	transaction.creates = status.as_ref().and_then(|status| status.contract_address);
-	// Public key.
-	transaction.public_key = pubkey.as_ref().map(H512::from);
+	transaction.creates = status.and_then(|status| status.contract_address);
 
 	transaction
 }
